@@ -1,0 +1,1145 @@
+<!DOCTYPE html>
+<html lang="id">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Kalkulator Skor Akreditasi — Sarjana Terapan Teknologi Rekayasa Pengelasan dan Fabrikasi</title>
+<style>
+  :root{
+    --steel:#22303c;        /* panel gelap: pelat baja */
+    --steel-2:#2e3f4e;
+    --ink:#1b232b;
+    --paper:#eef1f3;        /* latar abu dingin */
+    --card:#ffffff;
+    --line:#d4dade;
+    --arc:#f0a22e;          /* amber busur las: aksen utama */
+    --arc-deep:#c97f10;
+    --ok:#2e8b57;
+    --warn:#c0392b;
+    --muted:#5f6d78;
+    --mono:"Consolas","JetBrains Mono","SFMono-Regular",monospace;
+  }
+  *{box-sizing:border-box;margin:0;padding:0}
+  body{font-family:"Segoe UI",system-ui,-apple-system,sans-serif;background:var(--paper);color:var(--ink);font-size:14.5px;line-height:1.5}
+
+  header{background:var(--steel);color:#fff;padding:26px 22px 20px;border-bottom:4px solid var(--arc)}
+  header .eyebrow{font-family:var(--mono);font-size:11px;letter-spacing:2.5px;text-transform:uppercase;color:var(--arc);margin-bottom:6px}
+  header h1{font-size:clamp(19px,2.6vw,26px);font-weight:700;letter-spacing:.3px;max-width:900px}
+  header p{color:#b8c4cd;font-size:13px;margin-top:6px}
+
+  .wrap{max-width:1100px;margin:0 auto;padding:18px 16px 90px}
+
+  /* ===== panel ringkasan lengket ===== */
+  .summary{position:sticky;top:0;z-index:50;background:var(--card);border:1px solid var(--line);border-top:none;
+           border-radius:0 0 12px 12px;box-shadow:0 6px 18px rgba(20,30,40,.10);padding:14px 18px 12px;margin-bottom:20px}
+  .sum-row{display:flex;flex-wrap:wrap;gap:18px;align-items:baseline}
+  .sum-item{min-width:110px}
+  .sum-item .lbl{font-size:11px;text-transform:uppercase;letter-spacing:1.2px;color:var(--muted)}
+  .sum-item .val{font-family:var(--mono);font-size:24px;font-weight:700}
+  #predikat.val{font-family:inherit;font-size:20px}
+  .sum-actions{margin-left:auto;display:flex;gap:8px;flex-wrap:wrap;align-self:center}
+  button{cursor:pointer;border:1px solid var(--line);background:#fff;border-radius:8px;padding:7px 12px;font-size:12.5px;font-weight:600;color:var(--ink)}
+  button:hover{border-color:var(--arc);color:var(--arc-deep)}
+  button.primary{background:var(--steel);color:#fff;border-color:var(--steel)}
+  button.primary:hover{background:var(--steel-2);color:#fff}
+  button:focus-visible{outline:3px solid var(--arc);outline-offset:1px}
+
+  /* jalur "kampuh las": progres skor menuju 400 */
+  .seam{position:relative;height:26px;margin-top:12px;border-radius:6px;background:repeating-linear-gradient(135deg,#dfe4e7 0 8px,#e8ecee 8px 16px);border:1px solid var(--line);overflow:visible}
+  .seam-fill{position:absolute;inset:0;width:0%;border-radius:6px 0 0 6px;
+             background:linear-gradient(90deg,#f6c469,var(--arc) 60%,var(--arc-deep));transition:width .35s ease}
+  .seam-mark{position:absolute;top:-6px;bottom:-6px;width:2px;background:var(--steel)}
+  .seam-mark span{position:absolute;top:100%;left:50%;transform:translateX(-50%);white-space:nowrap;
+                  font-family:var(--mono);font-size:10px;color:var(--muted);margin-top:2px}
+  .seam-wrap{padding-bottom:20px}
+
+  .sp-wrap{overflow-x:auto;padding:6px 10px 10px}
+  .sp-table{width:100%;border-collapse:collapse;font-size:12.5px}
+  .sp-table th{background:transparent;border-bottom:1px solid var(--line);padding:5px 8px}
+  .sp-table td{padding:5px 8px;border-bottom:1px solid #eef1f3;vertical-align:middle}
+  .sp-table tr:last-child td{border-bottom:none}
+  .sp-butir{font-family:var(--mono);font-size:11.5px;color:var(--muted);white-space:nowrap}
+  .sp-nilai{font-family:var(--mono);white-space:nowrap}
+  .sp-in{width:72px;padding:4px 6px;border:1px solid var(--line);border-radius:6px;font-family:var(--mono);font-size:12.5px;text-align:right}
+  .sp-in:focus{outline:2px solid var(--arc);border-color:var(--arc)}
+  .sp-unit{font-size:11px;color:var(--muted)}
+  .sp-chk{font-family:var(--mono);font-size:12px;white-space:nowrap;color:var(--muted)}
+  .sp-chk.ok{color:var(--ok);font-weight:700}
+  .sp-chk.fail{color:var(--warn);font-weight:700}
+  .sp-summary{border-top:1px dashed var(--line);margin-top:2px;padding-top:8px;font-size:12.5px;font-weight:600;display:flex;gap:18px;flex-wrap:wrap}
+  .sp-summary .ok{color:var(--ok)} .sp-summary .fail{color:var(--warn)}
+
+  .badge{display:inline-block;margin-left:8px;padding:1px 8px;border-radius:20px;font-size:10px;font-weight:700;
+         letter-spacing:.5px;text-transform:uppercase;vertical-align:2px;white-space:nowrap}
+  .b-sp{background:#fdeed3;color:var(--arc-deep);border:1px solid #f0cf94}
+  .b-spu{background:#e3eaf0;color:var(--steel-2);border:1px solid #c3d0da}
+  .durasi{font-size:12px;font-weight:600;color:var(--muted)}
+
+  /* ===== kelompok kriteria ===== */
+  details.group{background:var(--card);border:1px solid var(--line);border-radius:10px;margin-bottom:14px;overflow:hidden}
+  details.group>summary{list-style:none;cursor:pointer;display:flex;align-items:center;gap:12px;
+                        padding:13px 16px;background:linear-gradient(180deg,#fff,#f6f8f9);border-bottom:1px solid transparent}
+  details.group[open]>summary{border-bottom-color:var(--line)}
+  details.group>summary::-webkit-details-marker{display:none}
+  .g-title{font-weight:700;font-size:15px}
+  .g-meta{margin-left:auto;font-family:var(--mono);font-size:12.5px;color:var(--muted);text-align:right}
+  .g-meta b{color:var(--ink)}
+  .chev{transition:transform .2s;color:var(--muted)}
+  details[open] .chev{transform:rotate(90deg)}
+
+  table{width:100%;border-collapse:collapse}
+  th{background:#f2f5f6;font-size:11px;text-transform:uppercase;letter-spacing:1px;color:var(--muted);
+     text-align:left;padding:8px 10px;border-bottom:1px solid var(--line)}
+  td{padding:10px;border-bottom:1px solid #e9edef;vertical-align:top}
+  tr:last-child td{border-bottom:none}
+  td.no{font-family:var(--mono);font-weight:700;white-space:nowrap;width:52px;color:var(--steel-2)}
+  td.bobot,td.nilai{font-family:var(--mono);text-align:right;white-space:nowrap;width:70px}
+  td.nilai{font-weight:700}
+  .ind-title{font-weight:600}
+  .ind-detail{color:var(--muted);font-size:12.8px;margin-top:3px}
+  .ind-detail summary{cursor:pointer;color:var(--arc-deep);font-size:12px;font-weight:600;list-style:none}
+  .ind-detail summary::-webkit-details-marker{display:none}
+  .ind-detail summary:hover{text-decoration:underline}
+  .ind-detail p{margin-top:4px;white-space:pre-line}
+  .sbox{margin-top:6px;border-radius:0 6px 6px 0;border-left:3px solid var(--line)}
+  .sbox.s4{border-left-color:var(--arc);background:#fbf4e6}
+  .sbox.s3{border-left-color:#9fb2c0;background:#eef3f6}
+  .sbox summary{cursor:pointer;list-style:none;padding:5px 10px;font-family:var(--mono);font-size:10.5px;font-weight:700;letter-spacing:1px;text-transform:uppercase}
+  .sbox summary::-webkit-details-marker{display:none}
+  .sbox summary::before{content:"\25B8  ";}
+  .sbox[open] summary::before{content:"\25BE  ";}
+  .sbox.s4 summary{color:var(--arc-deep)}
+  .sbox.s3 summary{color:var(--steel-2)}
+  .sbox p{color:var(--ink);font-size:12.8px;padding:0 10px 8px;margin:0}
+  .sbox.rf{border-left-color:#7a8fa0;background:#f2f5f7}
+  .sbox.rf summary{color:var(--steel-2)}
+  .sbox.calc{border-left-color:var(--ok);background:#eef6f1;margin-top:8px}
+  .sbox.calc summary{color:var(--ok)}
+  .calc-body{padding:4px 10px 10px;display:flex;flex-wrap:wrap;gap:8px 14px;align-items:flex-end}
+  .calc-f{display:flex;flex-direction:column;gap:2px}
+  .calc-f label{font-size:10.5px;color:var(--muted);letter-spacing:.3px}
+  .calc-in{width:130px;padding:4px 6px;border:1px solid var(--line);border-radius:6px;font-family:var(--mono);font-size:12.5px;text-align:right}
+  .calc-in:focus{outline:2px solid var(--ok);border-color:var(--ok)}
+  .calc-res{flex-basis:100%;font-family:var(--mono);font-size:12px;color:var(--ink);line-height:1.8;background:#fff;border:1px solid #d9e6dd;border-radius:6px;padding:8px 10px;margin-top:4px}
+  .calc-res b{color:var(--ok);font-size:14px}
+  .calc-grid{border-collapse:collapse;font-size:12px}
+  .calc-grid th{background:transparent;border-bottom:1px solid #cfe0d5;padding:4px 8px;font-size:10.5px;color:var(--muted);letter-spacing:.5px;text-transform:uppercase}
+  .calc-grid td{padding:3px 8px;border-bottom:1px solid #e2eee7}
+  .calc-grid tr:last-child td{border-bottom:none}
+  .cg-nama{font-size:12px;white-space:nowrap}
+  .cg-in{width:76px}
+
+  /* pilihan skor 1-4 */
+  .score{display:flex;gap:4px}
+  .score label{position:relative}
+  .score input{position:absolute;opacity:0;inset:0;cursor:pointer}
+  .score span{display:flex;align-items:center;justify-content:center;width:32px;height:32px;border:1px solid var(--line);
+              border-radius:7px;font-family:var(--mono);font-weight:700;font-size:13px;color:var(--muted);background:#fff;user-select:none}
+  .score input:hover+span{border-color:var(--arc)}
+  .score input:checked+span{background:var(--steel);border-color:var(--steel);color:#fff}
+  .score input:checked+span.s4{background:var(--arc-deep);border-color:var(--arc-deep)}
+  .score input:focus-visible+span{outline:3px solid var(--arc);outline-offset:1px}
+  td.skor{width:160px}
+  .auto-skor{display:inline-flex;align-items:center;justify-content:center;min-width:64px;height:32px;padding:0 10px;border:1px dashed var(--ok);border-radius:7px;background:#eef6f1;font-family:var(--mono);font-weight:700;font-size:14px;color:var(--ok)}
+  .auto-skor.kosong{border-color:var(--line);background:#f5f7f8;color:var(--muted);font-weight:400;font-size:11px}
+
+  footer{max-width:1100px;margin:0 auto;padding:0 16px 40px;color:var(--muted);font-size:12px}
+  .thresholds{font-family:var(--mono)}
+
+  @media (max-width:720px){
+    td.skor{width:auto}
+    .sum-item .val{font-size:19px}
+    thead{display:none}
+    table,tbody,tr,td{display:block;width:100%}
+    td{border-bottom:none;padding:4px 12px}
+    tr{border-bottom:1px solid var(--line);padding:8px 0}
+    td.bobot::before{content:"Bobot: ";color:var(--muted);font-family:inherit}
+    td.nilai::before{content:"Nilai: ";color:var(--muted);font-family:inherit}
+    td.bobot,td.nilai{text-align:left}
+  }
+  @media (prefers-reduced-motion:reduce){ .seam-fill{transition:none} }
+</style>
+</head>
+<body>
+
+<header>
+  <div class="eyebrow">Simulasi Penilaian Akreditasi &middot; LAM Teknik</div>
+  <h1>Kalkulator Skor Akreditasi Sarjana Terapan Teknologi Rekayasa Pengelasan dan Fabrikasi</h1>
+  <p>Pilih prediksi skor (1&ndash;4) untuk setiap butir indikator. Nilai akhir = &Sigma; (bobot &times; skor), skala maksimum 400.</p>
+</header>
+
+<div class="wrap">
+
+  <div class="summary">
+    <div class="sum-row">
+      <div class="sum-item"><div class="lbl">Total Nilai</div><div class="val" id="totalNilai">0.00</div></div>
+      <div class="sum-item"><div class="lbl">Nilai Maks</div><div class="val" id="nilaiMaks">0</div></div>
+      <div class="sum-item"><div class="lbl">Capaian</div><div class="val" id="persen">0%</div></div>
+      <div class="sum-item"><div class="lbl">Status Akreditasi</div><div class="val" id="predikat">&mdash;</div><div class="durasi" id="durasi"></div></div>
+      <div class="sum-item"><div class="lbl">Total Bobot</div><div class="val" id="totalBobot">0</div></div>
+      <div class="sum-actions">
+        <button id="btnAll4" class="primary">Set semua = 4</button>
+        <button id="btnAll3">Set semua = 3</button>
+        <button id="btnAll2">Set semua = 2</button>
+        <button id="btnReset">Reset</button>
+        <button id="btnCsv">Ekspor CSV</button>
+      </div>
+    </div>
+    <div class="seam-wrap">
+      <div class="seam" aria-hidden="true">
+        <div class="seam-fill" id="seamFill"></div>
+        <div class="seam-mark" style="left:50%"><span>200</span></div>
+        <div class="seam-mark" style="left:82.75%"><span>331</span></div>
+        <div class="seam-mark" style="left:90.25%"><span>361</span></div>
+      </div>
+    </div>
+    <div class="sp-summary" id="spSummary"></div>
+  </div>
+
+  <details class="group" id="spPanel">
+    <summary>
+      <span class="chev">&#9656;</span>
+      <span class="g-title">Syarat Perlu (Tabel 4.3.5)</span>
+      <span class="g-meta">rerata otomatis dari skor butir &middot; indikator kuantitatif diisi manual</span>
+    </summary>
+    <div class="sp-wrap">
+      <table class="sp-table">
+        <thead><tr><th>Kriteria</th><th>Butir</th><th style="text-align:right">Nilai</th><th>Unggul 5 Th</th><th>Unggul 3 Th</th><th>Terakreditasi</th></tr></thead>
+        <tbody id="spBody"></tbody>
+      </table>
+    </div>
+  </details>
+
+  <div id="groups"></div>
+
+</div>
+
+<footer>
+  <p class="thresholds">Status akreditasi mengikuti Tabel 3: NA &ge; 361 (+ Syarat Perlu Unggul 5 Th) &rarr; Unggul 5 Tahun; NA &ge; 361 tanpa syarat Unggul 5 Th &rarr; Unggul 3 Tahun; 331 &le; NA &lt; 361 (+ Syarat Perlu Unggul 3 Th) &rarr; Unggul 3 Tahun, tanpa syarat &rarr; Terakreditasi 5 Tahun; 200 &le; NA &lt; 331 &rarr; Terakreditasi 5 Tahun; Syarat Perlu Terakreditasi tidak terpenuhi atau NA &lt; 200 &rarr; Tidak Terakreditasi.</p>
+  <p>Isian tersimpan otomatis di browser (localStorage). Gunakan tombol Reset untuk mengosongkan.</p>
+</footer>
+
+<script>
+"use strict";
+
+/* Tabel 3 — Peringkat Akreditasi Berdasarkan Nilai Akreditasi (NA)
+   spTer = Syarat Perlu Terakreditasi; spU5/spU3 = Syarat Perlu Unggul 5/3 Tahun */
+function tentukanStatus(na, spTer, spU5, spU3){
+  if(na < 200)  return {label:"Tidak Terakreditasi", durasi:"", color:"var(--warn)",
+                        hint:"NA < 200 (baris 7)"};
+  if(!spTer)    return {label:"Tidak Terakreditasi", durasi:"", color:"var(--warn)",
+                        hint:"NA \u2265 200 tetapi Syarat Perlu Terakreditasi tidak terpenuhi (baris 6)"};
+  if(na >= 361) return spU5
+      ? {label:"Terakreditasi Unggul", durasi:"5 Tahun", color:"var(--ok)", hint:"baris 1"}
+      : {label:"Terakreditasi Unggul", durasi:"3 Tahun", color:"var(--ok)", hint:"baris 2 \u2014 Syarat Perlu Unggul 5 Tahun tidak terpenuhi"};
+  if(na >= 331) return spU3
+      ? {label:"Terakreditasi Unggul", durasi:"3 Tahun", color:"var(--ok)", hint:"baris 3"}
+      : {label:"Terakreditasi", durasi:"5 Tahun", color:"var(--arc-deep)", hint:"baris 4 \u2014 Syarat Perlu Unggul 3 Tahun tidak terpenuhi"};
+  return {label:"Terakreditasi", durasi:"5 Tahun", color:"var(--arc-deep)", hint:"baris 5 (200 \u2264 NA < 331)"};
+}
+
+/* id, no, judul singkat, detail, bobot */
+const ITEMS = [
+ {g:"Kriteria 1 — Visi, Misi, Tujuan, dan Strategi", rows:[
+  {id:"1",  no:"1",  t:"Kekhasan VMTS", d:"Pernyataan VMTS yang unik dan spesifik sebagai identitas PT, UPPS, dan visi keilmuan program studi sebagai keunggulan kompetitif yang didukung dengan renstra dan kurikulum yang memadai.", b:1.05, s4:"VMTS UPPS dan visi keilmuan prodi dengan mempertimbangkan: (1) Linearitas visi PT yang diturunkan ke VMTS UPPS sebagai identitas UPPS; (2) Kesesuaian VMTS UPPS dengan renstra; (3) Kesesuaian visi keilmuan program studi dengan kurikulum; (4) Tinjau ulang VMTS UPPS dan visi keilmuan prodi secara periodik.", s3:"VMTS UPPS dan visi keilmuan prodi dengan mempertimbangkan: (1) Linearitas visi PT yang diturunkan ke VMTS UPPS sebagai identitas UPPS; (2) Kesesuaian VMTS UPPS dengan renstra; (3) Kesesuaian visi keilmuan program studi dengan kurikulum."},
+  {id:"2",  no:"2",  t:"Mekanisme penyusunan VMTS", d:"Mekanisme dan keterlibatan pemangku kepentingan dalam penyusunan VMTS UPPS dan tujuan utama yang ingin dicapai dalam penyusunan visi keilmuan program studi dengan mempertimbangkan kebutuhan masyarakat dan tantangan global.", b:0.64, s4:"Mekanisme dalam penyusunan dan penetapan VMTS dengan mempertimbangkan aspek: (1) Keterlibatan pemangku kepentingan internal yang terdiri dari dosen, mahasiswa, dan tenaga kependidikan; (2) Pemangku kepentingan eksternal yang terdiri dari lulusan, pengguna lulusan, dan pakar.", s3:"Mekanisme dalam penyusunan dan penetapan VMTS dengan mempertimbangkan aspek: (1) Keterlibatan pemangku kepentingan internal yang terdiri dari dosen, mahasiswa, dan tenaga kependidikan; (2) Pemangku kepentingan eksternal yang terdiri dari lulusan dan pengguna lulusan."},
+  {id:"3",  no:"3",  t:"Tingkat pemahaman dan pencapaian VMTS", d:"Tingkat pemahaman dan pencapaian VMTS UPPS dan visi keilmuan program studi oleh seluruh pemangku kepentingan internal dan eksternal serta pencapaian konkret jangka pendek dan jangka menengah yang telah ditetapkan.", b:0.27, s4:"Tingkat pemahaman dan pencapaian VMTS UPPS dan visi keilmuan program studi yang mencakup: (1) Sosialisasi VMTS UPPS dan visi keilmuan program studi ke seluruh pemangku kepentingan; (2) Tingkat pemahaman VMTS UPPS dan visi keilmuan program studi para pemangku kepentingan internal dan eksternal; (3) Pencapaian konkret jangka pendek dan menengah VMTS UPPS dan visi keilmuan program studi; (4) VMTS UPPS dan visi keilmuan program studi berdampak, berkelanjutan, dan berorientasi pada masa depan.", s3:"Tingkat pemahaman dan pencapaian VMTS UPPS dan visi keilmuan program studi yang mencakup: (1) Sosialisasi VMTS UPPS dan visi keilmuan program studi ke seluruh pemangku kepentingan; (2) Tingkat pemahaman VMTS UPPS dan visi keilmuan program studi para pemangku kepentingan internal dan eksternal; (3) Pencapaian konkret jangka pendek dan menengah VMTS UPPS dan visi keilmuan program studi."},
+ ]},
+ {g:"Kriteria 2 — Akuntabilitas: Tata Pamong, Tata Kelola, Kerja Sama, dan Keuangan", rows:[
+  {id:"4a", no:"4.I",  t:"Sistem tata pamong: struktur organisasi & kebijakan operasional", d:"Kelengkapan struktur organisasi dan kebijakan operasional yang berpedoman pada statuta Perguruan Tinggi yang digunakan.", b:1.10, s4:"Sistem tata pamong UPPS yang mencakup: (1) Tersedianya statuta Perguruan Tinggi yang mengatur struktur organisasi dan kebijakan operasional; (2) Tersedianya kewenangan dan tugas yang dijalankan secara efektif; (3) Bukti sahih pelaksanaan struktur organisasi dan kebijakan operasional; (4) Aras kewenangan organ pokok dijalankan secara efektif untuk mendukung perkembangan jangka panjang.", s3:"Sistem tata pamong UPPS yang mencakup: (1) Tersedianya statuta Perguruan Tinggi yang mengatur struktur organisasi dan kebijakan operasional; (2) Tersedianya kewenangan dan tugas yang dijalankan secara efektif; (3) Bukti sahih pelaksanaan struktur organisasi dan kebijakan operasional."},
+  {id:"4b", no:"4.II", t:"Perwujudan Good University Governance", d:"Perwujudan Good University Governance mengacu pada sistem tata kelola yang efektif, transparan, dan akuntabel.", b:0.54, s4:"UPPS dikelola secara efektif, transparan, dan akuntabel dalam mendukung kualitas akademik, menciptakan lingkungan yang kondusif, dan memaksimalkan dampak positif bagi seluruh pemangku kepentingan internal dan eksternal.", s3:"UPPS dikelola secara efektif, transparan, dan akuntabel dalam mendukung kualitas akademik, menciptakan lingkungan yang kondusif, namun belum menunjukkan dampak yang signifikan bagi seluruh pemangku kepentingan internal dan eksternal."},
+  {id:"5a", no:"5.I",  t:"Komitmen pimpinan UPPS", d:"Pimpinan UPPS memiliki komitmen pada: (1) Visi dan tujuan organisasi; (2) Integritas dan transparansi; (3) Pengembangan sumber daya.", b:0.30, s4:"Pimpinan UPPS memiliki komitmen pada butir (1), (2), dan (3).", s3:"Pimpinan UPPS memiliki komitmen pada butir (1) dan (2), atau (1) dan (3)."},
+  {id:"5b", no:"5.II", t:"Kemampuan manajerial pimpinan UPPS", d:"Kemampuan manajerial pimpinan UPPS.", b:0.57, s4:"Pimpinan UPPS memiliki kemampuan dalam: (1) Kepemimpinan; (2) Pengambilan keputusan; (3) Manajemen konflik yang memberikan dampak positif bagi organisasi.", s3:"Pimpinan UPPS memiliki kemampuan dalam: (1) Kepemimpinan; (2) Pengambilan keputusan; (3) Manajemen konflik yang memberikan dampak positif yang kurang signifikan bagi organisasi."},
+  {id:"6a", no:"6.I",  t:"Relevansi kerja sama", d:"Relevansi kerja sama pendidikan, penelitian, dan PkM dengan visi UPPS serta visi keilmuan program studi. (Tabel 2.a LKPS)", b:0.46, calc:true, rumus:"Jika RK \u2265 4, maka Skor = 4. Selain itu, Skor = RK. RK = (N1 + N2 + N3) / NDTPS. N1 = jumlah kerja sama pendidikan; N2 = jumlah kerja sama penelitian; N3 = jumlah kerja sama PkM; NDTPS = jumlah dosen tetap yang ditugaskan sebagai pengampu mata kuliah dengan bidang keahlian yang sesuai dengan kompetensi inti program studi yang diakreditasi."},
+  {id:"6b", no:"6.II", t:"Kerja sama internasional/nasional/wilayah (3 tahun terakhir)", d:"Kerja sama tingkat internasional, nasional, wilayah/lokal yang relevan dengan program studi dan dikelola oleh UPPS dalam 3 tahun terakhir. (Tabel 2.a LKPS)", b:0.93, calc:true, rumus:"Jika NI > a dan NN > b, maka Skor = 4. Jika 0 < NI \u2264 a atau 0 < NN \u2264 b atau 0 < NW \u2264 c, maka Skor = 3,75 \u00d7 ((A + B + C/2) \u2212 (A\u00d7B) \u2212 (A\u00d7C)/2 \u2212 (B\u00d7C)/2 + (A\u00d7B\u00d7C)/2). Faktor: a = 2, b = 6, c = 8. NI = jumlah kerja sama tingkat internasional; NN = nasional; NW = wilayah/lokal. A = NI/a; B = NN/b; C = NW/c. Jika NI \u2265 a dan NN < b, maka NI = a; jika NI < a dan NN \u2265 b, maka NN = b; jika NW \u2265 c, maka NW = c."},
+  {id:"7",  no:"7",  t:"Pelaksanaan kerja sama (3 aspek)", d:"UPPS memiliki bukti sahih kerja sama yang memenuhi 3 aspek: (1) Manfaat bagi prodi dalam pemenuhan pembelajaran, penelitian, PkM; (2) Peningkatan kinerja tridharma dan fasilitas pendukung prodi; (3) Kepuasan mitra industri dan mitra kerja sama lainnya.", b:1.02, s4:"UPPS memiliki bukti yang sahih terkait kerja sama yang ada telah memenuhi 3 aspek.", s3:"UPPS memiliki bukti yang sahih terkait kerja sama yang ada telah memenuhi 2 aspek."},
+  {id:"8",  no:"8",  t:"Pengelolaan keuangan", d:"UPPS memiliki praktik pengelolaan sumber daya keuangan secara efektif dan efisien.", b:0.56, s4:"UPPS memiliki bukti sahih pelaksanaan pengelolaan keuangan yang mengacu pada aspek transparansi, kepatuhan terhadap regulasi, efisiensi dan efektivitas, pengelolaan risiko, serta audit internal dan eksternal.", s3:"UPPS memiliki bukti sahih pelaksanaan pengelolaan keuangan yang mengacu pada aspek transparansi, kepatuhan terhadap regulasi, efisiensi dan efektivitas, pengelolaan risiko, serta audit internal."},
+  {id:"9",  no:"9",  t:"Biaya operasional pendidikan (BOP)", d:"Biaya operasional pendidikan (BOP). (Tabel 2.b LKPS)", b:0.43, calc:true, rumus:"Jika BOP \u2265 20.000.000, maka Skor = 4. Jika BOP < 20.000.000, maka Skor = BOP / 5.000.000. BOP = rata-rata dana operasional pendidikan/mahasiswa/tahun dalam 3 tahun terakhir (dalam rupiah penuh)."},
+  {id:"10", no:"10", t:"Dana penelitian DTPS (DPD)", d:"Dana Penelitian DTPS (DPD). (Tabel 2.b LKPS)", b:0.43, calc:true, rumus:"Jika DPD \u2265 10.000.000, maka Skor = 4. Jika DPD < 10.000.000, maka Skor = (2 \u00d7 DPD) / 5.000.000. DPD = rata-rata dana penelitian DTPS/tahun dalam 3 tahun terakhir (dalam rupiah penuh)."},
+  {id:"11", no:"11", t:"Dana PkM (DPkMD)", d:"Dana PkM (DPkMD). (Tabel 2.b LKPS)", b:0.21, calc:true, rumus:"Jika DPkMD \u2265 5.000.000, maka Skor = 4. Jika DPkMD < 5.000.000, maka Skor = (4 \u00d7 DPkMD) / 5.000.000. DPkMD = rata-rata dana PkM DTPS/tahun dalam 3 tahun terakhir (dalam rupiah penuh)."},
+ ]},
+ {g:"Kriteria 3 — Relevansi Pendidikan, Penelitian, dan PkM", rows:[
+  {id:"12",  no:"12",   t:"Pemutakhiran kurikulum", d:"Keterlibatan pemangku kepentingan dalam proses evaluasi dan pemutakhiran kurikulum.", b:1.01, s4:"Evaluasi dan pemutakhiran kurikulum secara berkala tiap 4 s.d. 5 tahun yang melibatkan pemangku kepentingan internal dan eksternal, serta direview oleh pakar bidang ilmu program studi serta sesuai perkembangan ipteks dan kebutuhan pengguna.", s3:"Evaluasi dan pemutakhiran kurikulum secara berkala tiap 4 s.d. 5 tahun yang melibatkan pemangku kepentingan internal dan eksternal, serta direview oleh pakar bidang ilmu namun belum menunjukkan perkembangan ipteks."},
+  {id:"13a", no:"13.I", t:"Profil lulusan", d:"Profil lulusan yang ditetapkan oleh Program Studi.", b:2.02, s4:"Program Studi menetapkan profil lulusan dengan mempertimbangkan visi UPPS dan visi keilmuan program studi, kebutuhan pengguna, sumber daya yang dimiliki, serta kepentingan lokal, nasional, dan global. (Tabel 3.a.1 LKPS)", s3:"Program Studi menetapkan profil lulusan dengan mempertimbangkan visi UPPS dan visi keilmuan program studi, kebutuhan pengguna, sumber daya yang dimiliki, serta kepentingan lokal atau nasional."},
+  {id:"13b", no:"13.II",t:"Kesesuaian profil lulusan dengan CPL", d:"Kesesuaian profil lulusan dengan capaian pembelajaran (CPL).", b:2.02, s4:"CPL diturunkan dari profil lulusan yang mencakup: (1) Kesesuaian dengan kebutuhan pengguna; (2) Mengikuti perkembangan ipteks dan industri; (3) Memiliki kompetensi dalam menghadapi persaingan global; (4) Dilakukan pengukuran CPL dan ditinjau secara rutin.", s3:"CPL diturunkan dari profil lulusan yang mencakup: (1) Kesesuaian dengan kebutuhan pengguna; (2) Mengikuti perkembangan ipteks dan industri; (3) Memiliki kompetensi dalam menghadapi persaingan global."},
+  {id:"14a", no:"14.I", t:"Kesesuaian CPL dengan standar kompetensi lulusan", d:"Kesesuaian CPL dengan SKL mencakup: (1) Konsep rekayasa terapan spesifik disiplin ilmu terkait; (2) Kemampuan teknis dan adaptasi terhadap standar keteknikan dan teknologi baru; (3) Keterampilan komunikasi dan kerja tim; (4) Kepatuhan terhadap etika profesi.", b:0.96, s4:"Memenuhi keempat cakupan.", s3:"Memenuhi tiga dari empat cakupan."},
+  {id:"14b", no:"14.II",t:"Proses tinjauan rutin CPL", d:"Proses tinjauan rutin CPL.", b:0.99, s4:"Proses tinjauan rutin terhadap CPL dilakukan secara berkala sesuai dengan prosedur yang telah ditetapkan dengan melibatkan pemangku kepentingan internal dan eksternal.", s3:"Proses tinjauan rutin terhadap CPL dilakukan secara berkala sesuai dengan prosedur yang telah ditetapkan dengan melibatkan pemangku kepentingan internal."},
+  {id:"15a", no:"15.I", t:"Ketersediaan dan kelengkapan dokumen RPS (9 unsur)", d:"RPS memuat: 1) identitas prodi/MK/sks/dosen; 2) CPL yang dibebankan ke CPMK; 3) kemampuan akhir tiap tahap; 4) bahan kajian; 5) metode pembelajaran; 6) alokasi waktu; 7) pengalaman belajar/deskripsi tugas; 8) kriteria, indikator, bobot penilaian; 9) daftar referensi.", b:0.74, s4:"Dokumen RPS mencakup sembilan (9) komponen yang dapat diakses oleh mahasiswa dan dilaksanakan secara konsisten. (Tabel 3.a.1 LKPS)", s3:"Dokumen RPS mencakup sembilan (9) komponen yang dapat diakses oleh mahasiswa."},
+  {id:"15b", no:"15.II",t:"Proses tinjauan rutin RPS", d:"Proses tinjauan rutin RPS.", b:1.48, s4:"Proses tinjauan rutin terhadap RPS dilakukan secara berkala untuk memastikan relevansi, kesesuaian dengan CPL dan perkembangan keilmuan terbaru yang mencakup: (1) Analisis CPL; (2) Evaluasi kesesuaian materi dan metode pembelajaran; (3) Peninjauan metode penilaian; (4) Penyesuaian kurikulum dan pembaruan materi.", s3:"Proses tinjauan rutin terhadap RPS dilakukan secara berkala untuk memastikan relevansi, kesesuaian dengan CPL dan perkembangan keilmuan terbaru yang mencakup: (1) Analisis CPL; (2) Evaluasi kesesuaian materi dan metode pembelajaran; (3) Peninjauan metode penilaian."},
+  {id:"16a", no:"16.I", t:"Proses pembelajaran", d:"Proses pembelajaran untuk memastikan efektivitas, kualitas, dan keberhasilan pencapaian CPL.", b:0.95, s4:"Proses pembelajaran yang efektif dalam mencapai CPL dengan mempertimbangkan: (1) Metode pembelajaran; (2) Media dan sumber belajar; (3) Interaksi dosen dan mahasiswa; dan (4) Peningkatan daya analisis kritis.", s3:"Proses pembelajaran yang efektif dalam mencapai CPL dengan mempertimbangkan: (1) Metode pembelajaran; (2) Media dan sumber belajar; (3) Interaksi dosen dan mahasiswa."},
+  {id:"16b", no:"16.II",t:"Tinjauan rutin proses pembelajaran", d:"Tinjauan rutin proses pembelajaran.", b:0.95, s4:"Terdapat bukti sahih adanya sistem dan pelaksanaan pemantauan proses pembelajaran yang dilakukan secara berkala untuk memastikan kesesuaian dengan RPS. Pelaksanaan pemantauan mencakup: (1) Peninjauan kesesuaian dengan RPS; (2) Evaluasi metode pembelajaran; (3) Identifikasi peluang perbaikan; dan (4) Tindakan perbaikan.", s3:"Terdapat bukti sahih adanya sistem dan pelaksanaan pemantauan proses pembelajaran yang dilakukan secara berkala untuk memastikan kesesuaian dengan RPS. Pelaksanaan pemantauan mencakup: (1) Peninjauan kesesuaian dengan RPS; (2) Evaluasi metode pembelajaran; dan (3) Identifikasi peluang perbaikan."},
+  {id:"17",  no:"17",   t:"Integrasi penelitian dan PkM dalam pembelajaran", d:"Hasil Penelitian dan PkM yang dijadikan bahan ajar minimal 10% dari mata kuliah inti Program Studi.", b:2.21, s4:"Hasil Penelitian dan PkM yang dijadikan sebagai bahan ajar mencakup: (1) Memiliki relevansi dengan CPL; (2) Mendukung keunggulan kompetitif UPPS dan Program Studi; (3) Mengandung kebaruan ilmiah; dan (4) Mengandung dampak sosial yang positif. (Tabel 3.a.3 LKPS)", s3:"Hasil Penelitian dan PkM yang dijadikan sebagai bahan ajar mencakup: (1) Memiliki relevansi dengan CPL; (2) Mendukung keunggulan kompetitif UPPS dan Program Studi; (3) Mengandung kebaruan ilmiah."},
+  {id:"18",  no:"18",   t:"Pembelajaran praktik (PJP)", d:"Pembelajaran yang dilaksanakan dalam bentuk penugasan, praktikum, praktik bengkel, atau praktik lapangan. (Tabel 3.a.1 LKPS)", b:0.74, calc:true, rumus:"Jika 50% \u2264 PJP \u2264 70%, maka Skor = 4. Jika PJP < 50%, maka Skor = 1 + (6 \u00d7 PJP). Jika PJP > 70%, maka Skor = 4 \u2212 (((40 \u00d7 PJP) \u2212 28) / 3). JP = jam pembelajaran penugasan, praktikum, praktik bengkel, atau praktik lapangan (termasuk KKN); JB = jam pembelajaran total selama masa pendidikan; PJP = (JP / JB) \u00d7 100%."},
+  {id:"19",  no:"19",   t:"Basic sciences dan matematika", d:"Ketersediaan mata kuliah basic sciences dan matematika. (Tabel 3.a.4 LKPS)", b:0.98, calc:true, rumus:"Skor 4: PS menyediakan mata kuliah basic sciences dan matematika \u2265 4 SKS. Skor 3: 3 SKS. Skor 2: 2 SKS. Skor 1: < 2 SKS. Skor 0: tidak ada / kurang dari 1 SKS."},
+  {id:"20",  no:"20",   t:"Capstone design", d:"Terselenggaranya capstone design yang memiliki: (1) Panduan pelaksanaan; (2) Rumusan capaian pembelajaran mata kuliah; (3) Menggunakan standar keteknikan dan batasan realistis berdasarkan pengetahuan/keterampilan perkuliahan sebelumnya; (4) Bukti sahih pelaksanaan.", b:0.98, s4:"PS memiliki aspek (1) sampai (4).", s3:"PS memiliki aspek (1) sampai (3)."},
+  {id:"21a", no:"21.I", t:"Pengelolaan suasana akademik", d:"Pengelolaan suasana akademik.", b:1.36, s4:"Tersedianya kebijakan, program, dan fasilitas serta dilakukan evaluasi secara berkala dalam menciptakan atmosfer yang kondusif bagi pembelajaran dan pengembangan ilmu pengetahuan.", s3:"Tersedianya kebijakan, program, dan fasilitas dalam menciptakan atmosfer yang kondusif bagi pembelajaran dan pengembangan ilmu pengetahuan."},
+  {id:"21b", no:"21.II",t:"Integritas dan kebebasan ilmiah", d:"Kebebasan akademik, mimbar akademik, dan otonomi keilmuan.", b:1.36, s4:"Terlaksananya kebebasan akademik, mimbar akademik, dan otonomi keilmuan yang terjadwal setiap satu s.d. dua bulan.", s3:"Terlaksananya kebebasan akademik, mimbar akademik, dan otonomi keilmuan yang terjadwal setiap tiga s.d. empat bulan."},
+  {id:"22", no:"22", t:"Kesesuaian penelitian dengan VMTS (peta jalan)", d:"Mencakup: (1) UPPS memiliki peta jalan penelitian yang mendukung VMTS UPPS dan visi keilmuan prodi; (2) Peta jalan memayungi tema penelitian dosen & mahasiswa; (3) Evaluasi berkala keselarasan dengan visi; (4) Dampak positif bagi masyarakat.", b:1.28, s4:"Memenuhi empat unsur kesesuaian penelitian.", s3:"Memenuhi unsur (1), (2), dan (3) kesesuaian penelitian."},
+  {id:"23", no:"23", t:"Penelitian DTPS sesuai peta jalan melibatkan mahasiswa (PPDMhs)", d:"Penelitian DTPS yang sesuai dengan peta jalan penelitian dan pelaksanaannya melibatkan mahasiswa program studi dalam 3 tahun terakhir. (Tabel 6.h.1 LKPS)", b:0.98, calc:true, rumus:"Jika PPDMhs \u2265 25%, maka Skor = 4. Jika PPDMhs < 25%, maka Skor = 2 + (8 \u00d7 PPDMhs). Tidak ada skor kurang dari 2. NPMhs = jumlah judul penelitian DTPS yang dalam pelaksanaannya melibatkan mahasiswa program studi dalam 3 tahun terakhir; NPD = jumlah judul penelitian DTPS dalam 3 tahun terakhir; PPDMhs = (NPMhs / NPD) \u00d7 100%."},
+  {id:"24", no:"24", t:"Kesesuaian PkM dengan VMTS (peta jalan)", d:"Mencakup: (1) Peta jalan PkM mendukung VMTS UPPS dan visi keilmuan prodi; (2) Peta jalan memayungi tema PkM dosen & mahasiswa; (3) Evaluasi berkala; (4) Dampak positif bagi masyarakat.", b:0.86, s4:"Memenuhi empat unsur kesesuaian PkM.", s3:"Memenuhi unsur (1), (2), dan (3) kesesuaian PkM."},
+  {id:"25", no:"25", t:"PkM DTPS sesuai peta jalan melibatkan mahasiswa (PKDMhs)", d:"PkM DTPS yang sesuai dengan peta jalan PkM dan pelaksanaannya melibatkan mahasiswa program studi dalam 3 tahun terakhir. (Tabel 6.i LKPS)", b:0.65, calc:true, rumus:"Jika PKDMhs \u2265 25%, maka Skor = 4. Jika PKDMhs < 25%, maka Skor = 2 + (8 \u00d7 PKDMhs). Tidak ada skor kurang dari 2. NPKMhs = jumlah judul PkM DTPS yang dalam pelaksanaannya melibatkan mahasiswa program studi dalam 3 tahun terakhir; NPKD = jumlah judul PkM DTPS dalam 3 tahun terakhir; PKDMhs = (NPKMhs / NPKD) \u00d7 100%."},
+ ]},
+ {g:"Kriteria 4 — Sumber Daya Manusia", rows:[
+  {id:"26", no:"26", t:"Kecukupan jumlah DTPS", d:"Kecukupan jumlah DTPS. (Tabel 4.a LKPS)", b:0.99, calc:true, rumus:"Jika NDTPS \u2265 12 dan PDTT \u2264 10%, maka Skor = 4. Jika 5 \u2264 NDTPS < 12 dan PDTT \u2264 40%, maka Skor = 2 + 2(A \u00d7 B), dengan B = (40% \u2212 PDTT)/40%. Jika NDTPS \u2265 12 dan 10% < PDTT \u2264 40%, maka Skor = 2 + (2 \u00d7 B), dengan B = (40% \u2212 PDTT)/30%. Jika NDTPS \u2265 5 dan PDTT > 40%, maka Skor = 2. Jika NDTPS < 5, maka Skor = 0. NDTPS = jumlah dosen tetap pengampu MK dengan bidang keahlian sesuai kompetensi inti prodi yang diakreditasi; NDT = jumlah dosen tetap pengampu MK di prodi; NDTT = jumlah dosen tidak tetap pengampu MK di prodi; PDTT = (NDTT / (NDT + NDTT)) \u00d7 100%; A = (NDTPS \u2212 5) / 7."},
+  {id:"27", no:"27", t:"Kualifikasi akademik DTPS (PDS3)", d:"Kualifikasi akademik DTPS. (Tabel 4.a LKPS)", b:1.64, calc:true, rumus:"Jika PDS3 \u2265 20%, maka Skor = 4. Jika PDS3 < 20%, maka Skor = 2 + (PDS3 \u00d7 10). Tidak ada skor kurang dari 2. NDS3 = jumlah DTPS berpendidikan tertinggi Doktor/Doktor Terapan; PDS3 = (NDS3 / NDTPS) \u00d7 100%."},
+  {id:"28", no:"28", t:"Jabatan akademik DTPS (PGBLKL)", d:"Jabatan akademik DTPS. (Tabel 4.a LKPS)", b:0.79, calc:true, rumus:"Jika PGBLKL \u2265 50%, maka Skor = 4. Jika PGBLKL < 50%, maka Skor = 2 + (PGBLKL \u00d7 4). Tidak ada skor kurang dari 2. NDGB/NDLK/NDL = jumlah DTPS berjabatan Guru Besar/Lektor Kepala/Lektor; PGBLKL = ((NDGB + NDLK + NDL) / NDTPS) \u00d7 100%."},
+  {id:"29", no:"29", t:"Sertifikasi kompetensi/profesi/industri DTPS (PDSK)", d:"Sertifikasi kompetensi/profesi/industri DTPS. (Tabel 4.a LKPS)", b:0.20, calc:true, rumus:"Jika PDSK \u2265 50%, maka Skor = 4. Jika PDSK < 50%, maka Skor = 1 + (6 \u00d7 PDSK). Tidak ada skor kurang dari 1. NDSK = jumlah DTPS yang memiliki sertifikat kompetensi/profesi/industri; PDSK = (NDSK / NDTPS) \u00d7 100%."},
+  {id:"30", no:"30", t:"Keterlibatan dosen industri/praktisi (PMKI)", d:"Keterlibatan dosen industri/praktisi. (Tabel 4.a LKPS)", b:0.12, calc:true, rumus:"Jika PMKI \u2265 20%, maka Skor = 4. Jika PMKI < 20%, maka Skor = 2 + (10 \u00d7 PMKI). Tidak ada skor di bawah 2. MKKI = jumlah mata kuliah kompetensi yang diampu oleh dosen industri/praktisi; MKK = jumlah mata kuliah kompetensi; PMKI = (MKKI / MKK) \u00d7 100%."},
+  {id:"31", no:"31", t:"Tenaga kependidikan (laboran/teknisi/administrator)", d:"Kualifikasi dan kecukupan laboran/teknisi/administrator sistem untuk mendukung proses pembelajaran sesuai kebutuhan program studi. (Tabel 4.b LKPS)", b:1.91, s4:"UPPS memiliki jumlah laboran/teknisi/administrator sistem/dll yang cukup terhadap jumlah laboratorium yang digunakan program studi, kualifikasi sesuai dengan laboratorium yang menjadi tanggung jawabnya, dan > 70% bersertifikat kompetensi tertentu sesuai bidang tugasnya.", s3:"UPPS memiliki jumlah laboran/teknisi/administrator sistem/dll yang cukup terhadap jumlah laboratorium yang digunakan program studi, kualifikasi sesuai dengan laboratorium yang menjadi tanggung jawabnya, dan 10% \u2013 39% bersertifikat kompetensi tertentu sesuai bidang tugasnya."},
+  {id:"32", no:"32", t:"Rerata beban kerja (RBK) DTPS", d:"Rerata Beban Kerja (RBK) DTPS. (Tabel 4.c LKPS)", b:0.26, calc:true, rumus:"Jika RBK = 12 \u2013 16 SKS, maka Skor = 4. Jika RBK = 16 \u2013 20 SKS, maka Skor = (64 \u2212 (3 \u00d7 RBK)) / 4. Tidak ada skor kurang dari 1."},
+  {id:"33", no:"33", t:"Kegiatan penelitian DTPS (3 tahun)", d:"Kegiatan penelitian DTPS yang mendukung visi UPPS dan visi keilmuan program studi dalam 3 tahun terakhir. (Tabel 3.b & 4.a LKPS)", b:0.34, calc:true, rumus:"Jika RI > a dan RN > b, maka Skor = 4. Jika 0 < RI \u2264 a atau 0 < RN \u2264 b atau 0 < RW \u2264 c, maka Skor = 3,75 \u00d7 ((A + B + C/2) \u2212 (A\u00d7B) \u2212 (A\u00d7C)/2 \u2212 (B\u00d7C)/2 + (A\u00d7B\u00d7C)/2). Faktor: a = 0,05; b = 0,3; c = 1. RI = NI/3/NDTPS; RN = NN/3/NDTPS; RW = NW/3/NDTPS. NI/NN/NW = jumlah penelitian dengan sumber pembiayaan luar negeri / dalam negeri / PT-mandiri dalam 3 tahun terakhir. A = RI/a; B = RN/b; C = RW/c. Jika RI \u2265 a dan RN < b, maka RI = a; jika RI < a dan RN \u2265 b, maka RN = b; jika RW \u2265 c, maka RW = c."},
+  {id:"34", no:"34", t:"Kegiatan PkM DTPS (3 tahun)", d:"Kegiatan PkM DTPS yang mendukung visi UPPS dan visi keilmuan program studi dalam 3 tahun terakhir. (Tabel 3.c & 4.a LKPS)", b:0.20, calc:true, rumus:"Sama dengan elemen 33 namun untuk kegiatan PkM. Faktor: a = 0,05; b = 0,3; c = 1. RI = NI/3/NDTPS; RN = NN/3/NDTPS; RW = NW/3/NDTPS. NI/NN/NW = jumlah PkM dengan sumber pembiayaan luar negeri / dalam negeri / PT-mandiri dalam 3 tahun terakhir."},
+  {id:"35", no:"35", t:"Pagelaran/pameran/presentasi/publikasi ilmiah DTPS", d:"Pagelaran/pameran/presentasi/publikasi ilmiah dengan tema yang mendukung visi keilmuan program studi yang dihasilkan DTPS dalam 3 tahun terakhir. (Tabel 4.e & 4.a LKPS)", b:0.34, calc:true, rumus:"Jika RI > a dan RN > b, maka Skor = 4. Selain itu Skor = 3,75 \u00d7 ((A + B + C/2) \u2212 (A\u00d7B) \u2212 (A\u00d7C)/2 \u2212 (B\u00d7C)/2 + (A\u00d7B\u00d7C)/2). Faktor: a = 0,5; b = 0,5; c = 1. RI = (NA4 + NB3 + NC3)/NDTPS; RN = (NA2 + NA3 + NB2 + NC2)/NDTPS; RW = (NA1 + NB1 + NC1)/NDTPS. NA1 = publikasi jurnal nasional tidak terakreditasi; NA2 = jurnal nasional terakreditasi; NA3 = jurnal internasional; NA4 = jurnal internasional bereputasi; NB1 = prosiding seminar nasional/wilayah; NB2 = prosiding tidak terindeks seminar internasional; NB3 = prosiding terindeks Scopus/WoS seminar internasional; NC1/NC2/NC3 = pagelaran/pameran/presentasi forum tingkat wilayah/nasional/internasional. Aturan pembatasan sama dengan elemen 33."},
+  {id:"36", no:"36", t:"Luaran penelitian dan PkM DTPS (RLP)", d:"Luaran penelitian dan PkM yang mendukung visi UPPS dan visi keilmuan program studi yang dihasilkan DTPS dalam 3 tahun terakhir. (Tabel 4.f & 4.a LKPS)", b:0.20, calc:true, rumus:"Jika RLP \u2265 3, maka Skor = 4. Jika RLP < 3, maka Skor = 2 + ((2 \u00d7 RLP) / 3). Tidak ada skor kurang dari 2. RLP = ((3 \u00d7 NPaten) + 2 \u00d7 (NTTG + NBC) + NHKI) / NDTPS. NPaten = luaran ber-HKI (Paten, Paten Sederhana); NTTG = luaran berbentuk Teknologi Tepat Guna/Produk; NBC = luaran diterbitkan sebagai Buku ber-ISBN/Book Chapter; NHKI = luaran ber-HKI (Pencatatan Ciptaan)."},
+  {id:"37", no:"37", t:"Produk/jasa DTPS diadopsi industri/masyarakat (NAPJ)", d:"Produk/jasa yang diadopsi oleh industri/masyarakat terhadap jumlah dosen tetap dalam 3 tahun terakhir. (Tabel 4.g LKPS)", b:0.30, calc:true, rumus:"Jika NAPJ \u2265 3, maka Skor = 4. Jika NAPJ < 3, maka Skor = 1 + NAPJ. Tidak ada skor kurang dari 1. NAPJ = jumlah produk/jasa karya dosen tetap yang diadopsi oleh industri/masyarakat dalam 3 tahun terakhir."},
+  {id:"38", no:"38", t:"Kinerja DTPS (PKDTPS)", d:"Persentase DTPS yang memiliki karya ilmiah sebagai penulis pertama dan/atau penulis korespondensi dalam mendukung keunggulan kompetitif UPPS dan Program Studi. (Tabel 4.h LKPS)", b:1.89, calc:true, rumus:"Jika PKDTPS \u2265 10%, maka Skor = 4. Jika PKDTPS < 10%, maka Skor = 1 + (3 \u00d7 PKDTPS) / 10. Tidak ada skor kurang dari 1. PKDTPS = persentase jumlah dosen yang memiliki karya ilmiah sebagai penulis pertama dan/atau penulis korespondensi di jurnal internasional bereputasi, hasil penelitian yang dipublikasikan dalam prosiding internasional ber-ISSN/ISBN terindeks Scopus/IEEE Xplore/SPIE, atau paten, dalam 3 tahun terakhir."},
+  {id:"39", no:"39", t:"Persentase karya ilmiah bereputasi (PKIB) DTPS", d:"PKIB DTPS pada jurnal bereputasi atau prosiding internasional ber-ISSN/ISBN terindeks Scopus/IEEE Xplore/SPIE yang disitasi dalam 3 tahun terakhir. (Tabel 4.i LKPS)", b:2.18, calc:true, rumus:"Jika PKIB \u2265 15%, maka Skor = 4. Jika PKIB < 15%, maka Skor = 2 + (40 \u00d7 PKIB) / 3. Tidak ada skor kurang dari 2. KIB = jumlah karya ilmiah DTPS pada jurnal bereputasi atau prosiding internasional ber-ISSN/ISBN terindeks Scopus/IEEE Xplore/SPIE yang disitasi dalam 3 tahun terakhir; PKIB = KIB / NDTPS."},
+  {id:"40", no:"40", t:"Rekognisi DTPS sesuai bidang ilmu (PRDTPS)", d:"Persentase DTPS yang memiliki pengakuan/rekognisi sesuai bidang ilmu: visiting lecturer/scholar, keynote/invited speaker, editor/mitra bestari jurnal terakreditasi atau internasional bereputasi, tenaga ahli/konsultan, atau penghargaan prestasi/kinerja tingkat wilayah/nasional/internasional. (Tabel 4.j LKPS)", b:2.18, calc:true, rumus:"Jika PRDTPS \u2265 50%, maka Skor = 4. Jika PRDTPS < 50%, maka Skor = 2 + (4 \u00d7 PRDTPS). Tidak ada skor kurang dari 2. NRDTPS = jumlah DTPS yang memiliki pengakuan atas prestasi/kinerja yang relevan dengan bidang keahlian dalam 3 tahun terakhir; PRDTPS = NRDTPS / NDTPS."},
+ ]},
+ {g:"Kriteria 5 — Sarana, Prasarana, dan Keselamatan Kesehatan Kerja dan Lingkungan (K3L)", rows:[
+  {id:"41a", no:"41.I", t:"Sarana & prasarana kegiatan akademik", d:"Kecukupan dan mutu sarana dan prasarana untuk mendukung kegiatan akademik yang meliputi: (1) Ketersediaan media pembelajaran, perangkat elektronik, alat praktik laboratorium; (2) Ketersediaan ruang kelas, laboratorium sesuai panduan asosiasi penyelenggara program studi, dan perpustakaan; (3) Kelayakan sarana dan prasarana; (4) Kemudahan akses sarana prasarana. (Tabel 5.a LKPS)", b:2.47, s4:"Memenuhi empat unsur kecukupan dan mutu sarana prasarana kegiatan akademik.", s3:"Memenuhi unsur (1), (2), dan (3) kecukupan dan mutu sarana prasarana kegiatan akademik."},
+  {id:"41b", no:"41.II",t:"Sarana & prasarana kegiatan non-akademik", d:"Kecukupan dan mutu sarana dan prasarana untuk mendukung kegiatan non akademik yang meliputi: (1) Pusat kesehatan, pusat layanan konseling, pusat layanan karir, dan fasilitas ibadah; (2) Kelayakan sarana dan prasarana; (3) Kemudahan akses sarana prasarana. (Tabel 5.a LKPS)", b:2.47, s4:"Memenuhi tiga unsur kecukupan dan mutu sarana prasarana kegiatan non akademik.", s3:"Memenuhi dua unsur kecukupan dan mutu sarana prasarana kegiatan non akademik."},
+  {id:"42",  no:"42",   t:"Keselamatan Kesehatan Kerja dan Lingkungan (K3L)", d:"Meliputi: (1) Kebijakan dan tata kelola K3L termasuk komitmen memenuhi peraturan K3L; (2) Fasilitas K3L; (3) Bukti sahih pelaksanaan K3L; (4) Tinjauan berkala K3L dan pelaksanaannya. (Tabel 5.b & 5.c LKPS)", b:4.09, s4:"Memenuhi empat unsur K3L.", s3:"Memenuhi unsur (1), (2), dan (3) K3L."},
+ ]},
+ {g:"Kriteria 6 — Mahasiswa dan Luaran Mahasiswa", rows:[
+  {id:"43",  no:"43",   t:"Rasio mahasiswa terhadap DTPS (RMD)", d:"Rasio jumlah mahasiswa program studi terhadap jumlah DTPS. (Tabel 6.a & 4.a LKPS)", b:0.79, calc:true, rumus:"Jika 15 \u2264 RMD \u2264 25, maka Skor = 4. Jika RMD < 15, maka Skor = (4 \u00d7 RMD) / 15. Jika 25 < RMD < 35, maka Skor = (70 \u2212 (2 \u00d7 RMD)) / 5. Jika RMD \u2265 35, maka Skor = 0. NM = jumlah mahasiswa pada saat TS; RMD = NM / NDTPS."},
+  {id:"44",  no:"44",   t:"Persentase mahasiswa asing (PMA)", d:"Persentase Mahasiswa Asing (PMA). (Tabel 6.a LKPS)", b:0.56, calc:true, rumus:"Jika PMA \u2265 1%, maka Skor = 4. Jika PMA < 1%, maka Skor = 2 + (200 \u00d7 PMA). Tidak ada skor kurang dari 2."},
+  {id:"45",  no:"45",   t:"IPK lulusan (RIPK)", d:"IPK lulusan. RIPK = rata-rata IPK lulusan dalam 3 tahun terakhir. (Tabel 6.b LKPS)", b:1.08, calc:true, rumus:"Jika RIPK \u2265 3,25, maka Skor = 4. Jika 2,00 \u2264 RIPK < 3,25, maka Skor = ((8 \u00d7 RIPK) \u2212 6) / 5. Tidak ada skor kurang dari 2."},
+  {id:"46a", no:"46.I", t:"Prestasi mahasiswa bidang akademik (5 tahun)", d:"Prestasi mahasiswa di bidang akademik dalam 5 tahun terakhir. (Tabel 6.c.1 LKPS)", b:1.63, calc:true, rumus:"Jika RI > a dan RN > b, maka Skor = 4. Selain itu Skor = 3,75 \u00d7 ((A + B + C/2) \u2212 (A\u00d7B) \u2212 (A\u00d7C)/2 \u2212 (B\u00d7C)/2 + (A\u00d7B\u00d7C)/2). Faktor: a = 0,2%; b = 2%; c = 4%. RI = NI/NM; RN = NN/NM; RW = NW/NM. NI/NN/NW = jumlah prestasi akademik internasional/nasional/wilayah-lokal; NM = jumlah mahasiswa pada saat TS. Aturan pembatasan sama dengan elemen 6.II."},
+  {id:"46b", no:"46.II",t:"Prestasi mahasiswa bidang non-akademik (5 tahun)", d:"Prestasi mahasiswa di bidang non akademik dalam 5 tahun terakhir. (Tabel 6.c.2 LKPS)", b:0.54, calc:true, rumus:"Sama dengan elemen 46.I namun untuk prestasi non akademik. Faktor: a = 0,2%; b = 2%; c = 4%. RI = NI/NM; RN = NN/NM; RW = NW/NM."},
+  {id:"47",  no:"47",   t:"Produk/jasa karya mahasiswa diadopsi industri/masyarakat (NAPJ)", d:"Produk/jasa karya mahasiswa, yang dihasilkan secara mandiri atau bersama DTPS, yang diadopsi oleh industri/masyarakat dalam 3 tahun terakhir. (Tabel 6.e.4 LKPS)", b:1.34, calc:true, rumus:"Jika NAPJ \u2265 3, maka Skor = 4. Jika NAPJ < 3, maka Skor = 1 + NAPJ. Tidak ada skor kurang dari 1. NAPJ = jumlah produk/jasa karya mahasiswa yang diadopsi oleh industri/masyarakat dalam 3 tahun terakhir."},
+  {id:"48",  no:"48",   t:"Masa studi (MS)", d:"Masa studi. MS = rata-rata masa studi lulusan (tahun). (Tabel 6.d LKPS)", b:1.08, calc:true, rumus:"Jika 3,5 < MS \u2264 4,5, maka Skor = 4. Jika 4,5 < MS \u2264 8, maka Skor = (55 \u2212 (6 \u00d7 MS)) / 7. Jika MS \u2264 3, maka Skor = 0."},
+  {id:"49",  no:"49",   t:"Persentase kelulusan tepat waktu (PTW)", d:"Persentase kelulusan tepat waktu (PTW). PTW = (f/d) \u00d7 100%, dengan f = jumlah lulusan tepat waktu dan d = jumlah mahasiswa yang diterima pada angkatan tersebut. (Tabel 6.d LKPS)", b:1.08, calc:true, rumus:"Jika PTW \u2265 80%, maka Skor = 4. Jika 0% < PTW < 80%, maka Skor = 1 + (30 \u00d7 PTW) / 8. Tidak ada skor kurang dari 1."},
+  {id:"50",  no:"50",   t:"Pagelaran/pameran/presentasi/publikasi ilmiah mahasiswa", d:"Pagelaran/pameran/presentasi/publikasi ilmiah mahasiswa, yang dihasilkan secara mandiri atau bersama DTPS dalam 3 tahun terakhir. (Tabel 6.e.2 LKPS)", b:1.00, calc:true, rumus:"Jika RI > a dan RN > b, maka Skor = 4. Selain itu Skor = 3,75 \u00d7 ((A + B + C/2) \u2212 (A\u00d7B) \u2212 (A\u00d7C)/2 \u2212 (B\u00d7C)/2 + (A\u00d7B\u00d7C)/2). Faktor: a = 1%; b = 10%; c = 50%. RI = ((NA4 + NB3 + NC3)/NM) \u00d7 100%; RN = ((NA2 + NA3 + NB2 + NC2)/NM) \u00d7 100%; RW = ((NA1 + NB1 + NC1)/NM) \u00d7 100%. Kategori NA/NB/NC sama dengan elemen 35 (versi publikasi mahasiswa); NM = jumlah mahasiswa pada saat TS."},
+  {id:"51",  no:"51",   t:"Luaran penelitian dan PkM mahasiswa (NLP)", d:"Luaran penelitian dan PkM yang dihasilkan mahasiswa, baik secara mandiri atau bersama DTPS, dalam 3 tahun terakhir. (Tabel 6.e.3 LKPS)", b:0.33, calc:true, rumus:"Jika NLP \u2265 10, maka Skor = 4. Jika NLP < 10, maka Skor = 2 + (0,2 \u00d7 NLP). Tidak ada skor kurang dari 2. NLP = (3 \u00d7 NPaten) + 2 \u00d7 (NTTG + NBC) + NHKI."},
+  {id:"52",  no:"52",   t:"Tracer study (5 aspek)", d:"Mencakup: 1) terkoordinasi di tingkat PT; 2) reguler setiap tahun dan terdokumentasi; 3) kuesioner mencakup pertanyaan inti tracer study DIKTI; 4) ditargetkan seluruh populasi (lulusan TS-4 s.d. TS-2); 5) hasil disosialisasikan dan digunakan untuk pengembangan kurikulum dan pembelajaran.", b:3.39, s4:"Tracer study yang dilakukan telah mencakup 5 aspek.", s3:"Tracer study yang dilakukan telah mencakup 4 aspek."},
+  {id:"53",  no:"53",   t:"Waktu tunggu (WT)", d:"Waktu tunggu lulusan untuk mendapatkan pekerjaan atau berkarya pertama dalam 2 tahun, mulai TS-2 s.d. TS-1. Persentase responden lulusan minimal 30%. (Tabel 6.f.1 LKPS)", b:3.19, calc:true, rumus:"Jika WT \u2264 3 bulan, maka Skor = 4. Jika 3 < WT \u2264 18, maka Skor = (23 \u2212 WT) / 5. Tidak ada skor kurang dari 1."},
+  {id:"54",  no:"54",   t:"Kesesuaian bidang kerja (KBK)", d:"Kesesuaian bidang kerja lulusan saat mendapatkan pekerjaan pertama dalam 2 tahun, mulai TS-2 s.d. TS-1. Persentase responden lulusan minimal 30%. (Tabel 6.f.2 LKPS)", b:3.19, calc:true, rumus:"Jika KBK \u2265 60%, maka Skor = 4. Jika KBK < 60%, maka Skor = (20 \u00d7 KBK) / 3."},
+  {id:"55",  no:"55",   t:"Tingkat dan ukuran tempat kerja lulusan", d:"Tingkat dan ukuran tempat kerja lulusan di tingkat internasional, nasional, dan wilayah/lokal. Persentase responden lulusan minimal 30%. (Tabel 6.g.1 LKPS)", b:3.19, calc:true, rumus:"Jika RI > a dan RN > b, maka Skor = 4. Selain itu Skor = 3,75 \u00d7 ((A + B + C/2) \u2212 (A\u00d7B) \u2212 (A\u00d7C)/2 \u2212 (B\u00d7C)/2 + (A\u00d7B\u00d7C)/2). Faktor: a = 5%; b = 20%; c = 90%. RI = (NI/NL) \u00d7 100%; RN = (NN/NL) \u00d7 100%; RW = (NW/NL) \u00d7 100%. NI = lulusan bekerja di badan usaha tingkat multinasional/internasional; NN = badan usaha tingkat nasional atau berwirausaha berizin; NW = badan usaha tingkat wilayah/lokal atau berwirausaha tidak berizin; NL = jumlah lulusan. Aturan pembatasan sama dengan elemen 6.II."},
+  {id:"56",  no:"56",   t:"Tingkat kepuasan pengguna lulusan", d:"Tingkat kepuasan pengguna lulusan terhadap 7 aspek. Persentase responden pengguna 50% dari persentase responden lulusan minimal 30%. (Tabel 6.g.2 LKPS)", b:2.48, calc:true, rumus:"Skor = \u03a3TKi / 7. Tingkat kepuasan aspek ke-i: TKi = ((4 \u00d7 ai) + (3 \u00d7 bi) + (2 \u00d7 ci) + di) / 100, dengan i = 1..7. ai = persentase \u201csangat baik\u201d; bi = \u201cbaik\u201d; ci = \u201ccukup\u201d; di = \u201ckurang\u201d. Jumlah ai + bi + ci + di tiap aspek = 100%."},
+ ]},
+ {g:"Kriteria 7 — Sistem Penjaminan Mutu", rows:[
+  {id:"57a", no:"57.I", t:"Unit penjaminan mutu & komitmen pimpinan (4 aspek)", d:"Keberadaan: (1) Dokumen legal pembentukan unsur pelaksana penjaminan mutu; (2) Dokumen legal auditor bersifat independen; (3) Dokumen pelaksanaan audit mutu internal; (4) Dokumen Rapat Tinjauan Manajemen (RTM).", b:2.24, s4:"UPPS memiliki aspek nomor (1) sampai dengan nomor (4).", s3:"UPPS memiliki aspek nomor (1) sampai dengan nomor (3)."},
+  {id:"57b", no:"57.II",t:"Ketersediaan perangkat SPMI & pengakuan mutu eksternal", d:"Ketersediaan perangkat SPMI yang minimal mencakup: 1. Kebijakan SPMI; 2. Pedoman penerapan siklus PPEPP standar pendidikan tinggi dalam SPMI; 3. Standar dan/atau kriteria, norma, acuan mutu penyelenggaraan pendidikan dan pengelolaan perguruan tinggi; dan 4. Tata cara pendokumentasian implementasi SPMI, serta sistem penjaminan mutu memiliki pengakuan mutu dari lembaga audit eksternal, lembaga akreditasi, dan lembaga sertifikasi. (Tabel 7.a LKPS)", b:2.24, s4:"UPPS memiliki perangkat SPMI yang minimal mencakup perangkat 1 s.d. 4 dengan tata cara pendokumentasian implementasi SPMI yang lengkap dan dikembangkan secara berkelanjutan serta memiliki pengakuan mutu internasional.", s3:"UPPS memiliki perangkat SPMI yang minimal mencakup perangkat 1 s.d. 4 dengan tata cara pendokumentasian implementasi SPMI yang lengkap dan dikembangkan secara berkelanjutan serta memiliki pengakuan mutu nasional."},
+  {id:"58",  no:"58",   t:"Indikator Kinerja Tambahan (IKT)", d:"IKT disusun sesuai unsur: (1) Tujuan strategis organisasi; (2) Dampak positif dan terukur; (3) Daya saing internasional; (4) Telah diukur dan dianalisis untuk perbaikan UPPS dan Prodi.", b:2.72, s4:"Memenuhi unsur (1), (2), (3), dan (4) IKT.", s3:"Memenuhi unsur (1), (2), dan (3) IKT."},
+  {id:"59",  no:"59",   t:"Keterlaksanaan SPMI dan audit mutu internal", d:"Memenuhi aspek: (1) Dokumen IKU dan IKT Pendidikan, Penelitian, PkM; (2) Siklus PPEPP terlaksana; (3) Bukti sahih efektivitas penjaminan mutu; (4) Bukti peningkatan standar.", b:1.80, s4:"UPPS dan PS telah melaksanakan SPMI yang memenuhi 4 aspek. (Tabel 7.b LKPS)", s3:"UPPS dan PS telah melaksanakan SPMI yang memenuhi aspek nomor (1) sampai dengan (3)."},
+  {id:"60",  no:"60",   t:"Evaluasi capaian kinerja", d:"Analisis ketercapaian kinerja UPPS pada budaya, relevansi, akuntabilitas, diferensiasi misi: (1) Metode pengukuran tepat; (2) Evaluasi akar masalah indikator tak tercapai; (3) Tinjauan rutin hasil pengukuran; (4) Hasil disebarluaskan ke pemangku kepentingan.", b:2.71, s4:"Memenuhi keempat aspek evaluasi capaian kinerja.", s3:"Memenuhi aspek (1), (2), dan (3) evaluasi capaian kinerja."},
+  {id:"61",  no:"61",   t:"Kepuasan pemangku kepentingan (6 aspek)", d:"Pengukuran kepuasan mahasiswa, dosen, tendik, lulusan, pengguna, mitra: (1) Instrumen sahih, andal, mudah digunakan; (2) Berkala dan terekam komprehensif; (3) Dianalisis dengan metode tepat; (4) Umpan balik ditindaklanjuti tersistem; (5) Review pelaksanaan pengukuran; (6) Hasil dipublikasikan dan mudah diakses.", b:2.76, s4:"Unit pengelola melakukan pengukuran kepuasan layanan manajemen terhadap seluruh pemangku kepentingan dan memenuhi aspek (1) s.d. (6).", s3:"Unit pengelola melakukan pengukuran kepuasan layanan manajemen terhadap seluruh pemangku kepentingan dan memenuhi aspek (1) s.d. (4) ditambah aspek (5) atau aspek (6)."},
+ ]},
+ {g:"Pengembangan Berkelanjutan", rows:[
+  {id:"62a", no:"62.I", t:"Analisis lingkungan eksternal dalam pengembangan UPPS dan Prodi", d:"Analisis lingkungan eksternal dalam pengembangan UPPS dan Program Studi.", b:1.36, s4:"UPPS melakukan analisis lingkungan makro dan mikro sebagai dasar menyusun analisis SWOT yang memenuhi aspek: (1) Memperhatikan kondisi eksternal program studi yang terdiri atas lingkungan makro dan lingkungan mikro di tingkat nasional dan internasional; (2) Lingkungan makro mencakup aspek kebijakan eksternal, perkembangan ilmu pengetahuan dan teknologi, serta lingkungan mikro yang mencakup aspek pesaing serta kebutuhan dunia usaha/industri; (3) UPPS menganalisis aspek-aspek dalam lingkungan makro dan mikro yang relevan serta dapat mempengaruhi pengembangan UPPS dan program studi yang diakreditasi; (4) UPPS mampu mengidentifikasi pengembangan program studi yang berkesesuaian untuk menghasilkan program-program pengembangan alternatif yang tepat.", s3:"UPPS melakukan analisis lingkungan makro dan mikro sebagai dasar menyusun analisis SWOT yang memenuhi aspek (1), (2), dan (3) \u2014 tanpa identifikasi program pengembangan alternatif."},
+  {id:"62b", no:"62.II",t:"Ketepatan analisis SWOT", d:"Ketepatan analisis SWOT yang mengacu pada lingkungan eksternal dan analisis SWOT setiap kriteria.", b:1.36, s4:"UPPS melakukan analisis SWOT yang memenuhi aspek: (1) Identifikasi kekuatan/faktor pendorong, kelemahan/faktor penghambat, peluang, dan ancaman yang dihadapi UPPS dilakukan secara tepat; (2) Memiliki keterkaitan dengan hasil analisis capaian kinerja; (3) Merumuskan strategi pengembangan UPPS yang bersesuaian; dan (4) Menghasilkan program-program pengembangan alternatif yang tepat.", s3:"UPPS melakukan analisis SWOT yang memenuhi aspek (1), (2), dan (3)."},
+  {id:"63", no:"63", t:"Tujuan strategis pengembangan", d:"Ketepatan di dalam menetapkan tujuan strategis pengembangan.", b:1.88, s4:"UPPS menetapkan tujuan strategis pengembangan berdasarkan hasil analisis SWOT yang mempertimbangkan: (1) Rencana aksi pimpinan dan kemampuan sumber daya UPPS; (2) Kebutuhan jangka pendek dan jangka menengah UPPS; (3) Tujuan dan rencana strategis UPPS yang berlaku; (4) Aspirasi dari pemangku kepentingan internal dan eksternal; serta (5) Program yang menjamin keberlanjutan.", s3:"UPPS menetapkan tujuan strategis pengembangan berdasarkan hasil analisis SWOT yang mempertimbangkan aspek (1) sampai dengan (4)."},
+  {id:"64", no:"64", t:"Program pengembangan berkelanjutan", d:"UPPS memiliki kebijakan, ketersediaan sumber daya, kemampuan melaksanakan, dan kerealistikan program pengembangan berkelanjutan.", b:2.47, s4:"UPPS memiliki kebijakan dan upaya yang diturunkan ke dalam berbagai peraturan untuk menjamin keberlanjutan program yang mencakup: (1) Alokasi sumber daya; (2) Kemampuan melaksanakan program pengembangan; (3) Rencana penjaminan mutu yang berkelanjutan; dan (4) Keberadaan dukungan pemangku kepentingan eksternal.", s3:"UPPS memiliki kebijakan dan upaya yang diturunkan ke dalam berbagai peraturan untuk menjamin keberlanjutan program yang mencakup aspek (1), (2), dan (3)."},
+ ]},
+];
+
+const STORE_KEY = "akred_trpf_scores_v1";
+const fmt = n => n.toLocaleString("id-ID",{minimumFractionDigits:2,maximumFractionDigits:2});
+const fmtRp = n => n.toLocaleString("id-ID",{maximumFractionDigits:0});
+
+function loadSaved(){
+  try{ return JSON.parse(localStorage.getItem(STORE_KEY)) || {}; }catch(e){ return {}; }
+}
+function save(scores, inputs){
+  try{ localStorage.setItem(STORE_KEY, JSON.stringify({scores, inputs})); }catch(e){/* preview tanpa storage */}
+}
+
+const savedRaw = loadSaved();
+const saved = savedRaw.scores || savedRaw;  /* kompatibel format lama */
+const savedInputs = savedRaw.inputs || {};
+
+/* ===== Syarat Perlu — Tabel 4.3.5 ===== */
+const SP_CRITERIA = [
+ {key:"tata", name:"Sistem tata pamong", type:"avg", ids:["4a","4b","5a","5b"], butir:"4.I, 4.II, 5.I, 5.II",
+  u5:v=>v>=3.5, u3:v=>v>=3.0, ter:v=>v>=2.0, req:["\u2265 3,50","\u2265 3,00","\u2265 2,00"]},
+ {key:"kur", name:"Kurikulum", type:"avg", ids:["12","13a","13b","16a","16b"], butir:"12, 13.I\u2013II, 16.I\u2013II",
+  u5:v=>v>=3.5, u3:v=>v>=3.0, ter:v=>v>=2.0, req:["\u2265 3,50","\u2265 3,00","\u2265 2,00"]},
+ {key:"mutu", name:"Penjaminan mutu", type:"avg", ids:["57a","57b","58","59","60","61"], butir:"57.I\u2013II, 58\u201361",
+  u5:v=>v>=3.5, u3:v=>v>=3.0, ter:v=>v>=2.0, req:["\u2265 3,50","\u2265 3,00","\u2265 2,00"]},
+ {key:"sks", name:"MK basic sciences & matematika", type:"ref", ref:"ci_19_sks", unit:"SKS", butir:"19",
+  u5:v=>v>=4, u3:v=>v>=4, ter:v=>v>=2, req:["\u2265 4 SKS","\u2265 4 SKS","2 \u2264 SKS < 4"]},
+ {key:"dok", name:"Kualifikasi akademik DTPS (% Doktor/Doktor Terapan)", type:"fn", unit:"%", butir:"27",
+  fn:()=>pctDari(["ci_27_nds3"],"ci_27_ndtps"),
+  u5:v=>v>=15, u3:v=>v>=12.5, ter:null, req:["\u2265 15%","\u2265 12,5%","\u2014"]},
+ {key:"jab", name:"Jabatan akademik (% GB/LK/Lektor)", type:"fn", unit:"%", butir:"28",
+  fn:()=>pctDari(["ci_28_ndgb","ci_28_ndlk","ci_28_ndl"],"ci_28_ndtps"),
+  u5:v=>v>=40, u3:v=>v>=30, ter:null, req:["\u2265 40%","\u2265 30%","\u2014"]},
+ {key:"kin", name:"Kinerja DTPS (% karya ilmiah bereputasi/paten, 3 th)", type:"fn", unit:"%", butir:"38",
+  fn:()=>pctDari(["ci_38_nkd"],"ci_38_ndtps"),
+  u5:v=>v>=10, u3:v=>v>=7.5, ter:null, req:["\u2265 10%","\u2265 7,5%","\u2014"]},
+ {key:"wt", name:"Rata-rata waktu tunggu lulusan", type:"ref", ref:"ci_53_wt", unit:"bulan", butir:"53",
+  u5:v=>v<=6, u3:v=>v<=6, ter:null, req:["\u2264 6 bln","\u2264 6 bln","\u2014"]},
+ {key:"kbk", name:"Kesesuaian bidang kerja", type:"ref", ref:"ci_54_kbk", unit:"%", butir:"54",
+  u5:v=>v>=50, u3:v=>v>=50, ter:null, req:["\u2265 50%","\u2265 50%","\u2014"]},
+];
+
+/* jumlah nilai input pembilang dibagi input penyebut, dalam persen; null jika belum lengkap */
+function pctDari(numIds, denId){
+  const den = document.getElementById(denId);
+  if(!den || den.value==="" || !(parseFloat(den.value)>0)) return null;
+  let sum=0;
+  for(const id of numIds){
+    const el=document.getElementById(id);
+    if(!el || el.value==="") return null;
+    sum+=parseFloat(el.value);
+  }
+  return (sum/parseFloat(den.value))*100;
+}
+
+/* badge pada butir: b-sp = syarat Unggul & Terakreditasi; b-spu = syarat Unggul saja */
+const BADGES = {};
+["4a","4b","5a","5b","12","13a","13b","16a","16b","19","57a","57b","58","59","60","61"]
+  .forEach(id=>BADGES[id]={t:"Syarat Perlu",c:"b-sp"});
+["27","28","38","39","53","54"]
+  .forEach(id=>BADGES[id]={t:"Syarat Unggul",c:"b-spu"});
+const badgeHtml = id => BADGES[id] ? `<span class="badge ${BADGES[id].c}">${BADGES[id].t}</span>` : "";
+const container = document.getElementById("groups");
+
+ITEMS.forEach((grp,gi)=>{
+  const det = document.createElement("details");
+  det.className = "group"; det.open = true; det.dataset.gi = gi;
+  let rowsHtml = grp.rows.map(r=>{
+    const opts = [1,2,3,4].map(v=>{
+      const chk = saved[r.id]===v ? "checked" : "";
+      return `<label><input type="radio" name="sc_${r.id}" value="${v}" ${chk} data-id="${r.id}" data-bobot="${r.b}"><span class="s${v}">${v}</span></label>`;
+    }).join("");
+    return `<tr>
+      <td class="no">${r.no}</td>
+      <td>
+        <div class="ind-title">${r.t}${badgeHtml(r.id)}</div>
+        <details class="ind-detail"><summary>indikator</summary><p>${r.d}</p>${r.s4?`<details class="sbox s4"><summary>Keterangan skor 4</summary><p>${r.s4}</p></details>`:""}${r.s3?`<details class="sbox s3"><summary>Keterangan skor 3</summary><p>${r.s3}</p></details>`:""}${r.rumus?`<details class="sbox rf"><summary>Rumus skor</summary><p>${r.rumus}</p></details>`:""}</details>${r.calc?`<details class="sbox calc"><summary>Form hitung skor</summary><div class="calc-body" id="calc_${r.id}"></div></details>`:""}
+      </td>
+      <td class="bobot">${fmt(r.b)}</td>
+      <td class="skor">${r.calc?`<div class="auto-skor" id="as_${r.id}" title="Skor otomatis dari form hitung">&mdash;</div>`:`<div class="score" role="radiogroup" aria-label="Skor butir ${r.no}">${opts}</div>`}</td>
+      <td class="nilai" id="nl_${r.id}">&mdash;</td>
+    </tr>`;
+  }).join("");
+  det.innerHTML = `
+    <summary>
+      <span class="chev">&#9656;</span>
+      <span class="g-title">${grp.g}</span>
+      <span class="g-meta">bobot <b>${fmt(grp.rows.reduce((s,r)=>s+r.b,0))}</b> &nbsp;&middot;&nbsp; nilai <b id="gn_${gi}">0,00</b></span>
+    </summary>
+    <table>
+      <thead><tr><th>No.</th><th>Elemen</th><th style="text-align:right">Bobot</th><th>Skor</th><th style="text-align:right">Nilai</th></tr></thead>
+      <tbody>${rowsHtml}</tbody>
+    </table>`;
+  container.appendChild(det);
+});
+
+const ALL = ITEMS.flatMap(g=>g.rows);
+const TOTAL_BOBOT = ALL.reduce((s,r)=>s+r.b,0);
+document.getElementById("totalBobot").textContent = fmt(TOTAL_BOBOT);
+document.getElementById("nilaiMaks").textContent = fmt(TOTAL_BOBOT*4);
+
+function currentScores(){
+  const sc = {};
+  document.querySelectorAll('input[type=radio]:checked').forEach(i=>{ sc[i.dataset.id] = +i.value; });
+  return sc;
+}
+
+function recalc(){
+  const sc = currentScores();
+  Object.assign(sc, evalCalcs());
+  let total = 0;
+  ITEMS.forEach((grp,gi)=>{
+    let gsum = 0;
+    grp.rows.forEach(r=>{
+      const cell = document.getElementById("nl_"+r.id);
+      if(sc[r.id]){ const n = sc[r.id]*r.b; gsum += n; cell.textContent = fmt(n); }
+      else cell.innerHTML = "&mdash;";
+    });
+    document.getElementById("gn_"+gi).textContent = fmt(gsum);
+    total += gsum;
+  });
+  const max = TOTAL_BOBOT*4;
+  document.getElementById("totalNilai").textContent = fmt(total);
+  document.getElementById("persen").textContent = (max? (total/max*100):0).toFixed(1)+"%";
+  const {spTer, spU5, spU3} = evalSyarat(sc);
+
+  const pd = document.getElementById("predikat");
+  const dr = document.getElementById("durasi");
+  const answered = Object.keys(sc).length;
+  if(answered===0){
+    pd.innerHTML="&mdash;"; pd.style.color=""; dr.textContent="";
+  } else {
+    const st = tentukanStatus(total, spTer, spU5, spU3);
+    pd.textContent = st.label; pd.style.color = st.color;
+    dr.textContent = (st.durasi ? "Durasi: "+st.durasi+" \u2014 " : "") + st.hint;
+  }
+  document.getElementById("seamFill").style.width = Math.min(100, total/400*100)+"%";
+  const inputs = {};
+  SP_CRITERIA.filter(c=>c.type==="input").forEach(c=>{
+    const v = document.getElementById("spi_"+c.key).value;
+    if(v!=="") inputs[c.key]=v;
+  });
+  document.querySelectorAll(".calc-in").forEach(i=>{ if(i.value!=="") inputs[i.id]=i.value; });
+  save(sc, inputs);
+}
+
+/* ===== Kalkulator skor elemen berbasis rumus ===== */
+/* rumus 3,75 dengan rasio RI/RN/RW dan faktor a,b,c (elemen 33, 34, 35) */
+function skorRasio375(RI,RN,RW,a,b,c){
+  const lines=[];
+  if(RI>a && RN>b){ lines.push(`RI > a dan RN > b, maka <b>Skor = 4,00</b>`); return {lines, skor:4}; }
+  if(RI<=0 && RN<=0 && RW<=0){ lines.push(`RI = RN = RW = 0, maka <b>Skor = 0,00</b>`); return {lines, skor:0}; }
+  let ri=RI, rn=RN, rw=RW;
+  if(RI>=a && RN<b){ ri=a; lines.push(`RI \u2265 a dan RN < b, maka RI dibatasi = a = ${a}`); }
+  if(RI<a && RN>=b){ rn=b; lines.push(`RI < a dan RN \u2265 b, maka RN dibatasi = b = ${b}`); }
+  if(RW>=c){ rw=c; lines.push(`RW \u2265 c, maka RW dibatasi = c = ${c}`); }
+  ri=Math.min(ri,a); rn=Math.min(rn,b);
+  const A=ri/a, B=rn/b, C=rw/c;
+  lines.push(`A = RI/a = ${fmt(A)}; &nbsp;B = RN/b = ${fmt(B)}; &nbsp;C = RW/c = ${fmt(C)}`);
+  const inner=(A+B+(C/2))-(A*B)-((A*C)/2)-((B*C)/2)+((A*B*C)/2);
+  const skor=Math.max(0, Math.min(4, 3.75*inner));
+  lines.push(`Skor = 3,75 \u00d7 ((A + B + C/2) \u2212 (A\u00d7B) \u2212 (A\u00d7C)/2 \u2212 (B\u00d7C)/2 + (A\u00d7B\u00d7C)/2) = 3,75 \u00d7 ${fmt(inner)} = <b>${fmt(skor)}</b>`);
+  return {lines, skor};
+}
+
+const CALCS = {
+ "6a": {
+   fields:[{k:"n1",l:"N1 (kerja sama pendidikan)"},{k:"n2",l:"N2 (penelitian)"},{k:"n3",l:"N3 (PkM)"},{k:"nd",l:"NDTPS"}],
+   f: v=>{
+     if(!(v.nd>0)) return null;
+     const rk=(v.n1+v.n2+v.n3)/v.nd;
+     const skor=Math.min(4,rk);
+     const html =
+       `RK = (N1 + N2 + N3) / NDTPS<br>`+
+       `&nbsp;&nbsp;&nbsp;&nbsp;= (${v.n1} + ${v.n2} + ${v.n3}) / ${v.nd} = <b>${fmt(rk)}</b><br>`+
+       (rk>=4
+         ? `RK \u2265 4, maka <b>Skor = 4,00</b>`
+         : `RK < 4, maka Skor = RK = <b>${fmt(skor)}</b>`);
+     return {html, skor};
+   }},
+ "6b": {
+   fields:[{k:"ni",l:"NI (internasional)"},{k:"nn",l:"NN (nasional)"},{k:"nw",l:"NW (wilayah/lokal)"}],
+   f: v=>{
+     const a=2,b=6,c=8;
+     const NI0=v.ni, NN0=v.nn, NW0=v.nw;
+     const lines = [
+       `Faktor: a = ${a}; b = ${b}; c = ${c}`,
+       `NI = ${NI0} (kerja sama internasional); NN = ${NN0} (nasional); NW = ${NW0} (wilayah/lokal)`
+     ];
+     if(NI0>a && NN0>b){
+       lines.push(`NI > a (${NI0} > ${a}) dan NN > b (${NN0} > ${b}), maka <b>Skor = 4,00</b>`);
+       return {html:lines.join("<br>"), skor:4};
+     }
+     if(NI0<=0 && NN0<=0 && NW0<=0){
+       lines.push(`Tidak ada kerja sama (NI = NN = NW = 0), maka <b>Skor = 0,00</b>`);
+       return {html:lines.join("<br>"), skor:0};
+     }
+     let ni=NI0, nn=NN0, nw=NW0;
+     if(NI0>=a && NN0<b){ ni=a; lines.push(`NI \u2265 a dan NN < b, maka NI dibatasi = a = ${a}`); }
+     if(NI0<a && NN0>=b){ nn=b; lines.push(`NI < a dan NN \u2265 b, maka NN dibatasi = b = ${b}`); }
+     if(NW0>=c){ nw=c; lines.push(`NW \u2265 c, maka NW dibatasi = c = ${c}`); }
+     ni=Math.min(ni,a); nn=Math.min(nn,b);
+     const A=ni/a, B=nn/b, C=nw/c;
+     lines.push(`A = NI/a = ${ni}/${a} = ${fmt(A)}; &nbsp;B = NN/b = ${nn}/${b} = ${fmt(B)}; &nbsp;C = NW/c = ${nw}/${c} = ${fmt(C)}`);
+     const inner=(A+B+(C/2))-(A*B)-((A*C)/2)-((B*C)/2)+((A*B*C)/2);
+     const skor=Math.max(0,Math.min(4,3.75*inner));
+     lines.push(`Skor = 3,75 \u00d7 ((A + B + C/2) \u2212 (A\u00d7B) \u2212 (A\u00d7C)/2 \u2212 (B\u00d7C)/2 + (A\u00d7B\u00d7C)/2)`);
+     lines.push(`&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;= 3,75 \u00d7 ${fmt(inner)} = <b>${fmt(skor)}</b>`);
+     return {html:lines.join("<br>"), skor};
+   }},
+ "9": {
+   fields:[{k:"bop",l:"BOP: rerata dana operasional pendidikan/mhs/tahun, 3 tahun terakhir (Rp)"}],
+   f: v=>{
+     const bop=v.bop;
+     if(bop>=20000000) return {html:`BOP = Rp ${fmtRp(bop)} \u2265 Rp 20.000.000, maka <b>Skor = 4,00</b>`, skor:4};
+     const skor=Math.max(0, bop/5000000);
+     return {html:`BOP = Rp ${fmtRp(bop)} < Rp 20.000.000<br>Skor = BOP / 5.000.000 = ${fmtRp(bop)} / 5.000.000 = <b>${fmt(skor)}</b>`, skor};
+   }},
+ "10": {
+   fields:[{k:"dpd",l:"DPD: rerata dana penelitian DTPS/tahun, 3 tahun terakhir (Rp)"}],
+   f: v=>{
+     const dpd=v.dpd;
+     if(dpd>=10000000) return {html:`DPD = Rp ${fmtRp(dpd)} \u2265 Rp 10.000.000, maka <b>Skor = 4,00</b>`, skor:4};
+     const skor=Math.max(0, (2*dpd)/5000000);
+     return {html:`DPD = Rp ${fmtRp(dpd)} < Rp 10.000.000<br>Skor = (2 \u00d7 DPD) / 5.000.000 = (2 \u00d7 ${fmtRp(dpd)}) / 5.000.000 = <b>${fmt(skor)}</b>`, skor};
+   }},
+ "11": {
+   fields:[{k:"dpkmd",l:"DPkMD: rerata dana PkM DTPS/tahun, 3 tahun terakhir (Rp)"}],
+   f: v=>{
+     const d=v.dpkmd;
+     if(d>=5000000) return {html:`DPkMD = Rp ${fmtRp(d)} \u2265 Rp 5.000.000, maka <b>Skor = 4,00</b>`, skor:4};
+     const skor=Math.max(0, (4*d)/5000000);
+     return {html:`DPkMD = Rp ${fmtRp(d)} < Rp 5.000.000<br>Skor = (4 \u00d7 DPkMD) / 5.000.000 = (4 \u00d7 ${fmtRp(d)}) / 5.000.000 = <b>${fmt(skor)}</b>`, skor};
+   }},
+ "23": {
+   fields:[{k:"npmhs",l:"NPMhs: judul penelitian DTPS melibatkan mahasiswa (3 th)"},{k:"npd",l:"NPD: total judul penelitian DTPS (3 th)"}],
+   f: v=>{
+     if(!(v.npd>0)) return null;
+     const ppd=v.npmhs/v.npd;
+     const lines=[`PPDMhs = (NPMhs / NPD) \u00d7 100% = (${v.npmhs} / ${v.npd}) \u00d7 100% = <b>${fmt(ppd*100)}%</b>`];
+     let skor;
+     if(ppd>=0.25){ skor=4; lines.push(`PPDMhs \u2265 25%, maka <b>Skor = 4,00</b>`); }
+     else {
+       skor=2+(8*ppd);
+       lines.push(`PPDMhs < 25%, maka Skor = 2 + (8 \u00d7 PPDMhs) = 2 + (8 \u00d7 ${fmt(ppd)}) = <b>${fmt(skor)}</b>`);
+       lines.push(`(tidak ada skor kurang dari 2)`);
+     }
+     return {html:lines.join("<br>"), skor};
+   }},
+ "25": {
+   fields:[{k:"npkmhs",l:"NPKMhs: judul PkM DTPS melibatkan mahasiswa (3 th)"},{k:"npkd",l:"NPKD: total judul PkM DTPS (3 th)"}],
+   f: v=>{
+     if(!(v.npkd>0)) return null;
+     const pkd=v.npkmhs/v.npkd;
+     const lines=[`PKDMhs = (NPKMhs / NPKD) \u00d7 100% = (${v.npkmhs} / ${v.npkd}) \u00d7 100% = <b>${fmt(pkd*100)}%</b>`];
+     let skor;
+     if(pkd>=0.25){ skor=4; lines.push(`PKDMhs \u2265 25%, maka <b>Skor = 4,00</b>`); }
+     else {
+       skor=2+(8*pkd);
+       lines.push(`PKDMhs < 25%, maka Skor = 2 + (8 \u00d7 PKDMhs) = 2 + (8 \u00d7 ${fmt(pkd)}) = <b>${fmt(skor)}</b>`);
+       lines.push(`(tidak ada skor kurang dari 2)`);
+     }
+     return {html:lines.join("<br>"), skor};
+   }},
+ "26": {
+   fields:[{k:"ndtps",l:"NDTPS"},{k:"ndt",l:"NDT (dosen tetap pengampu MK di prodi)"},{k:"ndtt",l:"NDTT (dosen tidak tetap)"}],
+   f: v=>{
+     const tot=v.ndt+v.ndtt;
+     const pdtt = tot>0 ? v.ndtt/tot : 0;
+     const lines=[`PDTT = (NDTT / (NDT + NDTT)) \u00d7 100% = (${v.ndtt} / ${tot}) \u00d7 100% = <b>${fmt(pdtt*100)}%</b>`];
+     let skor;
+     if(v.ndtps<5){ skor=0; lines.push(`NDTPS < 5, maka <b>Skor = 0,00</b>`); }
+     else if(pdtt>0.4){ skor=2; lines.push(`NDTPS \u2265 5 dan PDTT > 40%, maka <b>Skor = 2,00</b>`); }
+     else if(v.ndtps>=12 && pdtt<=0.10){ skor=4; lines.push(`NDTPS \u2265 12 dan PDTT \u2264 10%, maka <b>Skor = 4,00</b>`); }
+     else if(v.ndtps>=12){
+       const B=(0.4-pdtt)/0.3;
+       skor=Math.min(4, 2+(2*B));
+       lines.push(`NDTPS \u2265 12 dan 10% < PDTT \u2264 40%: B = (40% \u2212 PDTT)/30% = ${fmt(B)}`);
+       lines.push(`Skor = 2 + (2 \u00d7 B) = 2 + (2 \u00d7 ${fmt(B)}) = <b>${fmt(skor)}</b>`);
+     } else {
+       const A=(v.ndtps-5)/7, B=(0.4-pdtt)/0.4;
+       skor=Math.min(4, 2+2*(A*B));
+       lines.push(`5 \u2264 NDTPS < 12 dan PDTT \u2264 40%: A = (NDTPS \u2212 5)/7 = ${fmt(A)}; B = (40% \u2212 PDTT)/40% = ${fmt(B)}`);
+       lines.push(`Skor = 2 + 2(A \u00d7 B) = 2 + 2(${fmt(A)} \u00d7 ${fmt(B)}) = <b>${fmt(skor)}</b>`);
+     }
+     return {html:lines.join("<br>"), skor};
+   }},
+ "27": {
+   fields:[{k:"nds3",l:"NDS3: DTPS Doktor/Doktor Terapan"},{k:"ndtps",l:"NDTPS"}],
+   f: v=>{
+     if(!(v.ndtps>0)) return null;
+     const p=v.nds3/v.ndtps;
+     const lines=[`PDS3 = (NDS3 / NDTPS) \u00d7 100% = (${v.nds3} / ${v.ndtps}) \u00d7 100% = <b>${fmt(p*100)}%</b>`];
+     let skor;
+     if(p>=0.20){ skor=4; lines.push(`PDS3 \u2265 20%, maka <b>Skor = 4,00</b>`); }
+     else { skor=2+(p*10); lines.push(`PDS3 < 20%, maka Skor = 2 + (PDS3 \u00d7 10) = 2 + (${fmt(p)} \u00d7 10) = <b>${fmt(skor)}</b> (tidak ada skor kurang dari 2)`); }
+     return {html:lines.join("<br>"), skor};
+   }},
+ "28": {
+   fields:[{k:"ndgb",l:"NDGB: Guru Besar"},{k:"ndlk",l:"NDLK: Lektor Kepala"},{k:"ndl",l:"NDL: Lektor"},{k:"ndtps",l:"NDTPS"}],
+   f: v=>{
+     if(!(v.ndtps>0)) return null;
+     const jml=v.ndgb+v.ndlk+v.ndl;
+     const p=jml/v.ndtps;
+     const lines=[`PGBLKL = ((NDGB + NDLK + NDL) / NDTPS) \u00d7 100% = (${jml} / ${v.ndtps}) \u00d7 100% = <b>${fmt(p*100)}%</b>`];
+     let skor;
+     if(p>=0.50){ skor=4; lines.push(`PGBLKL \u2265 50%, maka <b>Skor = 4,00</b>`); }
+     else { skor=2+(p*4); lines.push(`PGBLKL < 50%, maka Skor = 2 + (PGBLKL \u00d7 4) = 2 + (${fmt(p)} \u00d7 4) = <b>${fmt(skor)}</b> (tidak ada skor kurang dari 2)`); }
+     return {html:lines.join("<br>"), skor};
+   }},
+ "29": {
+   fields:[{k:"ndsk",l:"NDSK: DTPS bersertifikat kompetensi/profesi/industri"},{k:"ndtps",l:"NDTPS"}],
+   f: v=>{
+     if(!(v.ndtps>0)) return null;
+     const p=v.ndsk/v.ndtps;
+     const lines=[`PDSK = (NDSK / NDTPS) \u00d7 100% = (${v.ndsk} / ${v.ndtps}) \u00d7 100% = <b>${fmt(p*100)}%</b>`];
+     let skor;
+     if(p>=0.50){ skor=4; lines.push(`PDSK \u2265 50%, maka <b>Skor = 4,00</b>`); }
+     else { skor=1+(6*p); lines.push(`PDSK < 50%, maka Skor = 1 + (6 \u00d7 PDSK) = 1 + (6 \u00d7 ${fmt(p)}) = <b>${fmt(skor)}</b> (tidak ada skor kurang dari 1)`); }
+     return {html:lines.join("<br>"), skor};
+   }},
+ "30": {
+   fields:[{k:"mkki",l:"MKKI: MK kompetensi diampu dosen industri/praktisi"},{k:"mkk",l:"MKK: jumlah MK kompetensi"}],
+   f: v=>{
+     if(!(v.mkk>0)) return null;
+     const p=v.mkki/v.mkk;
+     const lines=[`PMKI = (MKKI / MKK) \u00d7 100% = (${v.mkki} / ${v.mkk}) \u00d7 100% = <b>${fmt(p*100)}%</b>`];
+     let skor;
+     if(p>=0.20){ skor=4; lines.push(`PMKI \u2265 20%, maka <b>Skor = 4,00</b>`); }
+     else { skor=2+(10*p); lines.push(`PMKI < 20%, maka Skor = 2 + (10 \u00d7 PMKI) = 2 + (10 \u00d7 ${fmt(p)}) = <b>${fmt(skor)}</b> (tidak ada skor di bawah 2)`); }
+     return {html:lines.join("<br>"), skor};
+   }},
+ "32": {
+   fields:[{k:"rbk",l:"RBK: rerata beban kerja DTPS (SKS)"}],
+   f: v=>{
+     const r=v.rbk;
+     if(r<12) return {html:`RBK = ${r} SKS berada di bawah rentang matriks (12 \u2013 20 SKS); skor tidak dapat dihitung otomatis \u2014 konsultasikan dengan asesor.`, skor:null};
+     let skor, lines=[`RBK = <b>${fmt(r)} SKS</b>`];
+     if(r<=16){ skor=4; lines.push(`RBK berada pada 12 \u2013 16 SKS, maka <b>Skor = 4,00</b>`); }
+     else {
+       skor=Math.max(1, (64-(3*r))/4);
+       lines.push(`RBK = 16 \u2013 20 SKS, maka Skor = (64 \u2212 (3 \u00d7 RBK)) / 4 = (64 \u2212 ${fmt(3*r)}) / 4 = <b>${fmt(skor)}</b> (tidak ada skor kurang dari 1)`);
+     }
+     return {html:lines.join("<br>"), skor};
+   }},
+ "33": {
+   fields:[{k:"ni",l:"NI: penelitian biaya luar negeri (3 th)"},{k:"nn",l:"NN: biaya dalam negeri (3 th)"},{k:"nw",l:"NW: biaya PT/mandiri (3 th)"},{k:"ndtps",l:"NDTPS"}],
+   f: v=>{
+     if(!(v.ndtps>0)) return null;
+     const a=0.05,b=0.3,c=1;
+     const RI=v.ni/3/v.ndtps, RN=v.nn/3/v.ndtps, RW=v.nw/3/v.ndtps;
+     const lines=[`Faktor: a = 0,05; b = 0,3; c = 1`,
+       `RI = NI/3/NDTPS = ${fmt(RI)}; RN = NN/3/NDTPS = ${fmt(RN)}; RW = NW/3/NDTPS = ${fmt(RW)}`];
+     const r=skorRasio375(RI,RN,RW,a,b,c);
+     return {html:lines.concat(r.lines).join("<br>"), skor:r.skor};
+   }},
+ "34": {
+   fields:[{k:"ni",l:"NI: PkM biaya luar negeri (3 th)"},{k:"nn",l:"NN: biaya dalam negeri (3 th)"},{k:"nw",l:"NW: biaya PT/mandiri (3 th)"},{k:"ndtps",l:"NDTPS"}],
+   f: v=>{
+     if(!(v.ndtps>0)) return null;
+     const a=0.05,b=0.3,c=1;
+     const RI=v.ni/3/v.ndtps, RN=v.nn/3/v.ndtps, RW=v.nw/3/v.ndtps;
+     const lines=[`Faktor: a = 0,05; b = 0,3; c = 1`,
+       `RI = NI/3/NDTPS = ${fmt(RI)}; RN = NN/3/NDTPS = ${fmt(RN)}; RW = NW/3/NDTPS = ${fmt(RW)}`];
+     const r=skorRasio375(RI,RN,RW,a,b,c);
+     return {html:lines.concat(r.lines).join("<br>"), skor:r.skor};
+   }},
+ "35": {
+   fields:[{k:"na1",l:"NA1: jurnal nasional tidak terakreditasi"},{k:"na2",l:"NA2: jurnal nasional terakreditasi"},{k:"na3",l:"NA3: jurnal internasional"},{k:"na4",l:"NA4: jurnal internasional bereputasi"},{k:"nb1",l:"NB1: prosiding seminar nasional/wilayah"},{k:"nb2",l:"NB2: prosiding tak terindeks seminar internasional"},{k:"nb3",l:"NB3: prosiding terindeks Scopus/WoS"},{k:"nc1",l:"NC1: pagelaran/pameran forum wilayah"},{k:"nc2",l:"NC2: forum nasional"},{k:"nc3",l:"NC3: forum internasional"},{k:"ndtps",l:"NDTPS"}],
+   f: v=>{
+     if(!(v.ndtps>0)) return null;
+     const a=0.5,b=0.5,c=1;
+     const RI=(v.na4+v.nb3+v.nc3)/v.ndtps;
+     const RN=(v.na2+v.na3+v.nb2+v.nc2)/v.ndtps;
+     const RW=(v.na1+v.nb1+v.nc1)/v.ndtps;
+     const lines=[`Faktor: a = 0,5; b = 0,5; c = 1`,
+       `RI = (NA4 + NB3 + NC3)/NDTPS = (${v.na4}+${v.nb3}+${v.nc3})/${v.ndtps} = ${fmt(RI)}`,
+       `RN = (NA2 + NA3 + NB2 + NC2)/NDTPS = (${v.na2}+${v.na3}+${v.nb2}+${v.nc2})/${v.ndtps} = ${fmt(RN)}`,
+       `RW = (NA1 + NB1 + NC1)/NDTPS = (${v.na1}+${v.nb1}+${v.nc1})/${v.ndtps} = ${fmt(RW)}`];
+     const r=skorRasio375(RI,RN,RW,a,b,c);
+     return {html:lines.concat(r.lines).join("<br>"), skor:r.skor};
+   }},
+ "36": {
+   fields:[{k:"npaten",l:"NPaten: HKI Paten/Paten Sederhana"},{k:"nttg",l:"NTTG: Teknologi Tepat Guna/Produk"},{k:"nbc",l:"NBC: Buku ber-ISBN/Book Chapter"},{k:"nhki",l:"NHKI: HKI Pencatatan Ciptaan"},{k:"ndtps",l:"NDTPS"}],
+   f: v=>{
+     if(!(v.ndtps>0)) return null;
+     const rlp=((3*v.npaten)+2*(v.nttg+v.nbc)+v.nhki)/v.ndtps;
+     const lines=[`RLP = ((3 \u00d7 NPaten) + 2 \u00d7 (NTTG + NBC) + NHKI) / NDTPS = ((3\u00d7${v.npaten}) + 2\u00d7(${v.nttg}+${v.nbc}) + ${v.nhki}) / ${v.ndtps} = <b>${fmt(rlp)}</b>`];
+     let skor;
+     if(rlp>=3){ skor=4; lines.push(`RLP \u2265 3, maka <b>Skor = 4,00</b>`); }
+     else { skor=2+((2*rlp)/3); lines.push(`RLP < 3, maka Skor = 2 + ((2 \u00d7 RLP) / 3) = 2 + ((2 \u00d7 ${fmt(rlp)}) / 3) = <b>${fmt(skor)}</b> (tidak ada skor kurang dari 2)`); }
+     return {html:lines.join("<br>"), skor};
+   }},
+ "37": {
+   fields:[{k:"napj",l:"NAPJ: produk/jasa dosen tetap diadopsi industri/masyarakat (3 th)"}],
+   f: v=>{
+     const n=v.napj;
+     let skor, lines=[`NAPJ = <b>${n}</b>`];
+     if(n>=3){ skor=4; lines.push(`NAPJ \u2265 3, maka <b>Skor = 4,00</b>`); }
+     else { skor=Math.max(1, 1+n); lines.push(`NAPJ < 3, maka Skor = 1 + NAPJ = 1 + ${n} = <b>${fmt(skor)}</b> (tidak ada skor kurang dari 1)`); }
+     return {html:lines.join("<br>"), skor};
+   }},
+ "38": {
+   fields:[{k:"nkd",l:"Jumlah DTPS dengan karya ilmiah penulis pertama/korespondensi bereputasi atau paten (3 th)"},{k:"ndtps",l:"NDTPS"}],
+   f: v=>{
+     if(!(v.ndtps>0)) return null;
+     const pct=(v.nkd/v.ndtps)*100;
+     const lines=[`PKDTPS = (${v.nkd} / ${v.ndtps}) \u00d7 100% = <b>${fmt(pct)}%</b>`];
+     let skor;
+     if(pct>=10){ skor=4; lines.push(`PKDTPS \u2265 10%, maka <b>Skor = 4,00</b>`); }
+     else { skor=1+((3*pct)/10); lines.push(`PKDTPS < 10%, maka Skor = 1 + (3 \u00d7 PKDTPS) / 10 = 1 + (3 \u00d7 ${fmt(pct)}) / 10 = <b>${fmt(skor)}</b> (tidak ada skor kurang dari 1)`); }
+     return {html:lines.join("<br>"), skor};
+   }},
+ "39": {
+   fields:[{k:"kib",l:"KIB: karya ilmiah bereputasi DTPS yang disitasi (3 th)"},{k:"ndtps",l:"NDTPS"}],
+   f: v=>{
+     if(!(v.ndtps>0)) return null;
+     const p=v.kib/v.ndtps;
+     const lines=[`PKIB = KIB / NDTPS = ${v.kib} / ${v.ndtps} = <b>${fmt(p*100)}%</b>`];
+     let skor;
+     if(p>=0.15){ skor=4; lines.push(`PKIB \u2265 15%, maka <b>Skor = 4,00</b>`); }
+     else { skor=2+((40*p)/3); lines.push(`PKIB < 15%, maka Skor = 2 + (40 \u00d7 PKIB) / 3 = 2 + (40 \u00d7 ${fmt(p)}) / 3 = <b>${fmt(skor)}</b> (tidak ada skor kurang dari 2)`); }
+     return {html:lines.join("<br>"), skor};
+   }},
+ "40": {
+   fields:[{k:"nrdtps",l:"NRDTPS: DTPS dengan rekognisi relevan (3 th)"},{k:"ndtps",l:"NDTPS"}],
+   f: v=>{
+     if(!(v.ndtps>0)) return null;
+     const p=v.nrdtps/v.ndtps;
+     const lines=[`PRDTPS = NRDTPS / NDTPS = ${v.nrdtps} / ${v.ndtps} = <b>${fmt(p*100)}%</b>`];
+     let skor;
+     if(p>=0.50){ skor=4; lines.push(`PRDTPS \u2265 50%, maka <b>Skor = 4,00</b>`); }
+     else { skor=2+(4*p); lines.push(`PRDTPS < 50%, maka Skor = 2 + (4 \u00d7 PRDTPS) = 2 + (4 \u00d7 ${fmt(p)}) = <b>${fmt(skor)}</b> (tidak ada skor kurang dari 2)`); }
+     return {html:lines.join("<br>"), skor};
+   }},
+ "43": {
+   fields:[{k:"nm",l:"NM: jumlah mahasiswa saat TS"},{k:"ndtps",l:"NDTPS"}],
+   f: v=>{
+     if(!(v.ndtps>0)) return null;
+     const rmd=v.nm/v.ndtps;
+     const lines=[`RMD = NM / NDTPS = ${v.nm} / ${v.ndtps} = <b>${fmt(rmd)}</b>`];
+     let skor;
+     if(rmd>=15 && rmd<=25){ skor=4; lines.push(`15 \u2264 RMD \u2264 25, maka <b>Skor = 4,00</b>`); }
+     else if(rmd<15){ skor=(4*rmd)/15; lines.push(`RMD < 15, maka Skor = (4 \u00d7 RMD) / 15 = (4 \u00d7 ${fmt(rmd)}) / 15 = <b>${fmt(skor)}</b>`); }
+     else if(rmd<35){ skor=(70-(2*rmd))/5; lines.push(`25 < RMD < 35, maka Skor = (70 \u2212 (2 \u00d7 RMD)) / 5 = (70 \u2212 ${fmt(2*rmd)}) / 5 = <b>${fmt(skor)}</b>`); }
+     else { skor=0; lines.push(`RMD \u2265 35, maka <b>Skor = 0,00</b>`); }
+     return {html:lines.join("<br>"), skor:Math.max(0,Math.min(4,skor))};
+   }},
+ "44": {
+   fields:[{k:"pma",l:"PMA: persentase mahasiswa asing (%)"}],
+   f: v=>{
+     const p=v.pma/100;
+     const lines=[`PMA = <b>${fmt(v.pma)}%</b>`];
+     let skor;
+     if(v.pma>=1){ skor=4; lines.push(`PMA \u2265 1%, maka <b>Skor = 4,00</b>`); }
+     else { skor=2+(200*p); lines.push(`PMA < 1%, maka Skor = 2 + (200 \u00d7 PMA) = 2 + (200 \u00d7 ${fmt(p)}) = <b>${fmt(skor)}</b> (tidak ada skor kurang dari 2)`); }
+     return {html:lines.join("<br>"), skor};
+   }},
+ "45": {
+   fields:[{k:"ripk",l:"RIPK: rata-rata IPK lulusan (3 th)"}],
+   f: v=>{
+     const r=v.ripk;
+     const lines=[`RIPK = <b>${fmt(r)}</b>`];
+     let skor;
+     if(r>=3.25){ skor=4; lines.push(`RIPK \u2265 3,25, maka <b>Skor = 4,00</b>`); }
+     else if(r>=2){ skor=((8*r)-6)/5; lines.push(`2,00 \u2264 RIPK < 3,25, maka Skor = ((8 \u00d7 RIPK) \u2212 6) / 5 = ((8 \u00d7 ${fmt(r)}) \u2212 6) / 5 = <b>${fmt(skor)}</b>`); }
+     else { skor=2; lines.push(`RIPK < 2,00 \u2014 tidak ada skor kurang dari 2, maka <b>Skor = 2,00</b>`); }
+     return {html:lines.join("<br>"), skor};
+   }},
+ "46a": {
+   fields:[{k:"ni",l:"NI: prestasi akademik internasional (5 th)"},{k:"nn",l:"NN: nasional (5 th)"},{k:"nw",l:"NW: wilayah/lokal (5 th)"},{k:"nm",l:"NM: jumlah mahasiswa saat TS"}],
+   f: v=>{
+     if(!(v.nm>0)) return null;
+     const a=0.002,b=0.02,c=0.04;
+     const RI=v.ni/v.nm, RN=v.nn/v.nm, RW=v.nw/v.nm;
+     const lines=[`Faktor: a = 0,2%; b = 2%; c = 4%`,
+       `RI = NI/NM = ${fmt(RI*100)}%; RN = NN/NM = ${fmt(RN*100)}%; RW = NW/NM = ${fmt(RW*100)}%`];
+     const r=skorRasio375(RI,RN,RW,a,b,c);
+     return {html:lines.concat(r.lines).join("<br>"), skor:r.skor};
+   }},
+ "46b": {
+   fields:[{k:"ni",l:"NI: prestasi non-akademik internasional (5 th)"},{k:"nn",l:"NN: nasional (5 th)"},{k:"nw",l:"NW: wilayah/lokal (5 th)"},{k:"nm",l:"NM: jumlah mahasiswa saat TS"}],
+   f: v=>{
+     if(!(v.nm>0)) return null;
+     const a=0.002,b=0.02,c=0.04;
+     const RI=v.ni/v.nm, RN=v.nn/v.nm, RW=v.nw/v.nm;
+     const lines=[`Faktor: a = 0,2%; b = 2%; c = 4%`,
+       `RI = NI/NM = ${fmt(RI*100)}%; RN = NN/NM = ${fmt(RN*100)}%; RW = NW/NM = ${fmt(RW*100)}%`];
+     const r=skorRasio375(RI,RN,RW,a,b,c);
+     return {html:lines.concat(r.lines).join("<br>"), skor:r.skor};
+   }},
+ "47": {
+   fields:[{k:"napj",l:"NAPJ: produk/jasa karya mahasiswa diadopsi industri/masyarakat (3 th)"}],
+   f: v=>{
+     const n=v.napj;
+     let skor, lines=[`NAPJ = <b>${n}</b>`];
+     if(n>=3){ skor=4; lines.push(`NAPJ \u2265 3, maka <b>Skor = 4,00</b>`); }
+     else { skor=Math.max(1, 1+n); lines.push(`NAPJ < 3, maka Skor = 1 + NAPJ = 1 + ${n} = <b>${fmt(skor)}</b> (tidak ada skor kurang dari 1)`); }
+     return {html:lines.join("<br>"), skor};
+   }},
+ "48": {
+   fields:[{k:"ms",l:"MS: rata-rata masa studi lulusan (tahun)"}],
+   f: v=>{
+     const m=v.ms;
+     const lines=[`MS = <b>${fmt(m)} tahun</b>`];
+     let skor;
+     if(m<=3){ skor=0; lines.push(`MS \u2264 3, maka <b>Skor = 0,00</b>`); }
+     else if(m<=3.5){ return {html:`MS = ${fmt(m)} tahun berada pada rentang 3 < MS \u2264 3,5 yang tidak didefinisikan matriks; skor tidak dapat dihitung otomatis.`, skor:null}; }
+     else if(m<=4.5){ skor=4; lines.push(`3,5 < MS \u2264 4,5, maka <b>Skor = 4,00</b>`); }
+     else if(m<=8){ skor=(55-(6*m))/7; lines.push(`4,5 < MS \u2264 8, maka Skor = (55 \u2212 (6 \u00d7 MS)) / 7 = (55 \u2212 ${fmt(6*m)}) / 7 = <b>${fmt(skor)}</b>`); }
+     else { return {html:`MS = ${fmt(m)} tahun melebihi rentang matriks (MS > 8); skor tidak dapat dihitung otomatis.`, skor:null}; }
+     return {html:lines.join("<br>"), skor:Math.max(0,Math.min(4,skor))};
+   }},
+ "49": {
+   fields:[{k:"f",l:"f: jumlah lulusan tepat waktu"},{k:"d",l:"d: jumlah mahasiswa diterima pada angkatan tsb"}],
+   f: v=>{
+     if(!(v.d>0)) return null;
+     const ptw=v.f/v.d;
+     const lines=[`PTW = (f / d) \u00d7 100% = (${v.f} / ${v.d}) \u00d7 100% = <b>${fmt(ptw*100)}%</b>`];
+     let skor;
+     if(ptw>=0.8){ skor=4; lines.push(`PTW \u2265 80%, maka <b>Skor = 4,00</b>`); }
+     else { skor=Math.max(1, 1+((30*ptw)/8)); lines.push(`0% < PTW < 80%, maka Skor = 1 + (30 \u00d7 PTW) / 8 = 1 + (30 \u00d7 ${fmt(ptw)}) / 8 = <b>${fmt(skor)}</b> (tidak ada skor kurang dari 1)`); }
+     return {html:lines.join("<br>"), skor};
+   }},
+ "50": {
+   fields:[{k:"na1",l:"NA1: jurnal nasional tidak terakreditasi"},{k:"na2",l:"NA2: jurnal nasional terakreditasi"},{k:"na3",l:"NA3: jurnal internasional"},{k:"na4",l:"NA4: jurnal internasional bereputasi"},{k:"nb1",l:"NB1: prosiding seminar nasional/wilayah"},{k:"nb2",l:"NB2: prosiding tak terindeks seminar internasional"},{k:"nb3",l:"NB3: prosiding terindeks Scopus/WoS"},{k:"nc1",l:"NC1: pagelaran/pameran forum wilayah"},{k:"nc2",l:"NC2: forum nasional"},{k:"nc3",l:"NC3: forum internasional"},{k:"nm",l:"NM: jumlah mahasiswa saat TS"}],
+   f: v=>{
+     if(!(v.nm>0)) return null;
+     const a=1,b=10,c=50; /* dalam persen */
+     const RI=((v.na4+v.nb3+v.nc3)/v.nm)*100;
+     const RN=((v.na2+v.na3+v.nb2+v.nc2)/v.nm)*100;
+     const RW=((v.na1+v.nb1+v.nc1)/v.nm)*100;
+     const lines=[`Faktor: a = 1%; b = 10%; c = 50%`,
+       `RI = ((NA4 + NB3 + NC3)/NM) \u00d7 100% = ${fmt(RI)}%`,
+       `RN = ((NA2 + NA3 + NB2 + NC2)/NM) \u00d7 100% = ${fmt(RN)}%`,
+       `RW = ((NA1 + NB1 + NC1)/NM) \u00d7 100% = ${fmt(RW)}%`];
+     const r=skorRasio375(RI,RN,RW,a,b,c);
+     return {html:lines.concat(r.lines).join("<br>"), skor:r.skor};
+   }},
+ "51": {
+   fields:[{k:"npaten",l:"NPaten: HKI Paten/Paten Sederhana"},{k:"nttg",l:"NTTG: Teknologi Tepat Guna/Produk"},{k:"nbc",l:"NBC: Buku ber-ISBN/Book Chapter"},{k:"nhki",l:"NHKI: HKI Pencatatan Ciptaan"}],
+   f: v=>{
+     const nlp=(3*v.npaten)+2*(v.nttg+v.nbc)+v.nhki;
+     const lines=[`NLP = (3 \u00d7 NPaten) + 2 \u00d7 (NTTG + NBC) + NHKI = (3\u00d7${v.npaten}) + 2\u00d7(${v.nttg}+${v.nbc}) + ${v.nhki} = <b>${fmt(nlp)}</b>`];
+     let skor;
+     if(nlp>=10){ skor=4; lines.push(`NLP \u2265 10, maka <b>Skor = 4,00</b>`); }
+     else { skor=2+(0.2*nlp); lines.push(`NLP < 10, maka Skor = 2 + (0,2 \u00d7 NLP) = 2 + (0,2 \u00d7 ${fmt(nlp)}) = <b>${fmt(skor)}</b> (tidak ada skor kurang dari 2)`); }
+     return {html:lines.join("<br>"), skor};
+   }},
+ "53": {
+   fields:[{k:"wt",l:"WT: rata-rata waktu tunggu lulusan (bulan)"}],
+   f: v=>{
+     const w=v.wt;
+     const lines=[`WT = <b>${fmt(w)} bulan</b>`];
+     let skor;
+     if(w<=3){ skor=4; lines.push(`WT \u2264 3 bulan, maka <b>Skor = 4,00</b>`); }
+     else { skor=Math.max(1, (23-Math.min(w,18))/5); lines.push(`3 < WT \u2264 18, maka Skor = (23 \u2212 WT) / 5 = (23 \u2212 ${fmt(Math.min(w,18))}) / 5 = <b>${fmt(skor)}</b> (tidak ada skor kurang dari 1)`); }
+     return {html:lines.join("<br>"), skor};
+   }},
+ "54": {
+   fields:[{k:"kbk",l:"KBK: kesesuaian bidang kerja lulusan (%)"}],
+   f: v=>{
+     const k=v.kbk/100;
+     const lines=[`KBK = <b>${fmt(v.kbk)}%</b>`];
+     let skor;
+     if(v.kbk>=60){ skor=4; lines.push(`KBK \u2265 60%, maka <b>Skor = 4,00</b>`); }
+     else { skor=Math.max(0,(20*k)/3); lines.push(`KBK < 60%, maka Skor = (20 \u00d7 KBK) / 3 = (20 \u00d7 ${fmt(k)}) / 3 = <b>${fmt(skor)}</b>`); }
+     return {html:lines.join("<br>"), skor};
+   }},
+ "55": {
+   fields:[{k:"ni",l:"NI: lulusan di badan usaha multinasional/internasional"},{k:"nn",l:"NN: badan usaha nasional / wirausaha berizin"},{k:"nw",l:"NW: badan usaha wilayah/lokal / wirausaha tidak berizin"},{k:"nl",l:"NL: jumlah lulusan"}],
+   f: v=>{
+     if(!(v.nl>0)) return null;
+     const a=5,b=20,c=90; /* dalam persen */
+     const RI=(v.ni/v.nl)*100, RN=(v.nn/v.nl)*100, RW=(v.nw/v.nl)*100;
+     const lines=[`Faktor: a = 5%; b = 20%; c = 90%`,
+       `RI = (NI/NL) \u00d7 100% = (${v.ni}/${v.nl}) \u00d7 100% = ${fmt(RI)}%`,
+       `RN = (NN/NL) \u00d7 100% = (${v.nn}/${v.nl}) \u00d7 100% = ${fmt(RN)}%`,
+       `RW = (NW/NL) \u00d7 100% = (${v.nw}/${v.nl}) \u00d7 100% = ${fmt(RW)}%`];
+     const r=skorRasio375(RI,RN,RW,a,b,c);
+     return {html:lines.concat(r.lines).join("<br>"), skor:r.skor};
+   }},
+ "56": {
+   grid:{
+     rows:["Etika","Keahlian pada bidang ilmu","Kemampuan berbahasa asing","Penggunaan teknologi informasi","Kemampuan berkomunikasi","Kerja sama tim","Pengembangan diri"],
+     cols:[{k:"a",l:"Sangat baik (%)"},{k:"b",l:"Baik (%)"},{k:"c",l:"Cukup (%)"},{k:"d",l:"Kurang (%)"}]
+   },
+   f: rows=>{
+     const lines=[]; let total=0; let warn=false;
+     rows.forEach((r,i)=>{
+       const jml=r.a+r.b+r.c+r.d;
+       if(Math.abs(jml-100)>0.5) warn=true;
+       const tk=((4*r.a)+(3*r.b)+(2*r.c)+r.d)/100;
+       total+=tk;
+       lines.push(`TK${i+1} = ((4\u00d7${r.a}) + (3\u00d7${r.b}) + (2\u00d7${r.c}) + ${r.d}) / 100 = ${fmt(tk)}`);
+     });
+     const skor=Math.max(0, Math.min(4, total/7));
+     lines.push(`Skor = \u03a3TKi / 7 = ${fmt(total)} / 7 = <b>${fmt(skor)}</b>`);
+     if(warn) lines.push(`<span style="color:var(--warn)">Perhatian: ada aspek yang jumlah persentasenya \u2260 100%.</span>`);
+     return {html:lines.join("<br>"), skor};
+   }},
+ "18": {
+   fields:[{k:"jp",l:"JP: jam pembelajaran praktik (penugasan/praktikum/bengkel/lapangan, termasuk KKN)"},{k:"jb",l:"JB: jam pembelajaran total selama masa pendidikan"}],
+   f: v=>{
+     if(!(v.jb>0)) return null;
+     const pjp=v.jp/v.jb;
+     const lines=[`PJP = (JP / JB) \u00d7 100% = (${v.jp} / ${v.jb}) \u00d7 100% = <b>${fmt(pjp*100)}%</b>`];
+     let skor;
+     if(pjp>=0.5 && pjp<=0.7){
+       skor=4; lines.push(`50% \u2264 PJP \u2264 70%, maka <b>Skor = 4,00</b>`);
+     } else if(pjp<0.5){
+       skor=Math.max(0, 1+6*pjp);
+       lines.push(`PJP < 50%, maka Skor = 1 + (6 \u00d7 PJP) = 1 + (6 \u00d7 ${fmt(pjp)}) = <b>${fmt(skor)}</b>`);
+     } else {
+       skor=Math.max(0, Math.min(4, 4-(((40*pjp)-28)/3)));
+       lines.push(`PJP > 70%, maka Skor = 4 \u2212 (((40 \u00d7 PJP) \u2212 28) / 3) = 4 \u2212 (((40 \u00d7 ${fmt(pjp)}) \u2212 28) / 3) = <b>${fmt(skor)}</b>`);
+     }
+     return {html:lines.join("<br>"), skor};
+   }},
+ "19": {
+   fields:[{k:"sks",l:"Jumlah SKS mata kuliah basic sciences dan matematika"}],
+   f: v=>{
+     const x=v.sks;
+     let skor, ket;
+     if(x>=4){ skor=4; ket="PS menyediakan MK basic sciences dan matematika \u2265 4 SKS"; }
+     else if(x>=3){ skor=3; ket="3 SKS"; }
+     else if(x>=2){ skor=2; ket="2 SKS"; }
+     else if(x>=1){ skor=1; ket="< 2 SKS"; }
+     else { skor=0; ket="tidak ada / kurang dari 1 SKS"; }
+     return {html:`SKS = ${x} (${ket}), maka <b>Skor = ${fmt(skor)}</b>`, skor};
+   }},
+};
+
+/* isi form kalkulator ke dalam elemen yang punya flag calc */
+Object.entries(CALCS).forEach(([id,c])=>{
+  const body = document.getElementById("calc_"+id);
+  if(!body) return;
+  if(c.grid){
+    const head = `<tr><th style="text-align:left">Aspek</th>`+c.grid.cols.map(col=>`<th>${col.l}</th>`).join("")+`</tr>`;
+    const rows = c.grid.rows.map((nama,i)=>
+      `<tr><td class="cg-nama">${i+1}. ${nama}</td>`+
+      c.grid.cols.map(col=>{
+        const key=`ci_${id}_r${i}_${col.k}`;
+        return `<td><input type="number" class="calc-in cg-in" id="${key}" min="0" max="100" step="0.1" value="${savedInputs[key] ?? ""}"></td>`;
+      }).join("")+`</tr>`).join("");
+    body.innerHTML = `<div style="overflow-x:auto;flex-basis:100%"><table class="calc-grid">${head}${rows}</table></div>`+
+      `<div class="calc-res" id="cr_${id}">Isi semua kolom untuk menghitung skor.</div>`;
+  } else {
+    body.innerHTML = c.fields.map(f=>
+      `<div class="calc-f"><label for="ci_${id}_${f.k}">${f.l}</label>
+       <input type="number" class="calc-in" id="ci_${id}_${f.k}" min="0" step="1" value="${savedInputs["ci_"+id+"_"+f.k] ?? ""}"></div>`
+    ).join("") + `<div class="calc-res" id="cr_${id}">Isi semua kolom untuk menghitung skor.</div>`;
+  }
+});
+
+/* hitung skor dari form; kembalikan override {id: skor} dan perbarui teks hasil */
+function evalCalcs(){
+  const out = {};
+  Object.entries(CALCS).forEach(([id,c])=>{
+    const res = document.getElementById("cr_"+id);
+    if(!res) return;
+    let v, filled = true;
+    if(c.grid){
+      v = c.grid.rows.map((_,i)=>{
+        const row={};
+        c.grid.cols.forEach(col=>{
+          const raw = document.getElementById(`ci_${id}_r${i}_${col.k}`).value;
+          if(raw==="") filled=false; else row[col.k]=parseFloat(raw);
+        });
+        return row;
+      });
+    } else {
+      v = {};
+      c.fields.forEach(f=>{
+        const raw = document.getElementById(`ci_${id}_${f.k}`).value;
+        if(raw==="") filled=false; else v[f.k]=parseFloat(raw);
+      });
+    }
+    const asEl = document.getElementById("as_"+id);
+    const kosong = txt=>{ res.textContent = txt; if(asEl){ asEl.textContent="isi form \u2193"; asEl.classList.add("kosong"); } };
+    if(!filled){ kosong("Isi semua kolom untuk menghitung skor."); return; }
+    const r = c.f(v);
+    if(!r){ kosong("Input tidak valid (periksa pembagi \u2260 0)."); return; }
+    if(r.skor===null){
+      res.innerHTML = r.html;
+      if(asEl){ asEl.textContent = "\u2014"; asEl.classList.add("kosong"); }
+      return;
+    }
+    out[id] = r.skor;
+    res.innerHTML = r.html;
+    if(asEl){ asEl.textContent = fmt(r.skor); asEl.classList.remove("kosong"); }
+  });
+  return out;
+}
+
+/* bangun baris tabel syarat perlu */
+const spBody = document.getElementById("spBody");
+SP_CRITERIA.forEach(c=>{
+  const tr = document.createElement("tr");
+  const nilaiCell = (c.type==="avg" || c.type==="ref" || c.type==="fn")
+    ? `<span id="spv_${c.key}">&mdash;</span>`
+    : `<input type="number" class="sp-in" id="spi_${c.key}" min="0" step="${c.step}" value="${savedInputs[c.key] ?? ""}" aria-label="${c.name}"> <span class="sp-unit">${c.unit}</span>`;
+  tr.innerHTML = `<td><b>${c.name}</b>${c.type==="avg"?' <span class="sp-unit">(rerata skor)</span>':''}</td>
+    <td class="sp-butir">${c.butir}</td>
+    <td class="sp-nilai" style="text-align:right">${nilaiCell}</td>
+    <td class="sp-chk" id="sp5_${c.key}">${c.req[0]}</td>
+    <td class="sp-chk" id="sp3_${c.key}">${c.req[1]}</td>
+    <td class="sp-chk" id="spt_${c.key}">${c.req[2]}</td>`;
+  spBody.appendChild(tr);
+});
+
+function evalSyarat(sc){
+  let okTer = true, okU5 = true, okU3 = true;
+  SP_CRITERIA.forEach(c=>{
+    let val = null;
+    if(c.type==="avg"){
+      const vals = c.ids.map(id=>sc[id]).filter(v=>v);
+      if(vals.length === c.ids.length) val = vals.reduce((a,b)=>a+b,0)/vals.length;
+      document.getElementById("spv_"+c.key).textContent =
+        val!==null ? fmt(val) : `${vals.length}/${c.ids.length} butir`;
+    } else if(c.type==="fn"){
+      val = c.fn();
+      document.getElementById("spv_"+c.key).textContent =
+        val!==null ? `${fmt(val)} ${c.unit}` : `isi di elemen ${c.butir}`;
+    } else if(c.type==="ref"){
+      const el = document.getElementById(c.ref);
+      const raw = el ? el.value : "";
+      if(raw!=="") val = parseFloat(raw);
+      document.getElementById("spv_"+c.key).textContent =
+        val!==null ? `${val} ${c.unit}` : `isi di elemen ${c.butir}`;
+    } else {
+      const raw = document.getElementById("spi_"+c.key).value;
+      if(raw!=="") val = parseFloat(raw);
+    }
+    const mark = (el, fn, txt)=>{
+      el.className = "sp-chk";
+      if(!fn){ el.textContent = txt; return true; }              /* tidak dipersyaratkan */
+      if(val===null){ el.textContent = "? "+txt; return false; } /* belum terisi */
+      const pass = fn(val);
+      el.textContent = (pass?"\u2713 ":"\u2717 ")+txt;
+      el.classList.add(pass?"ok":"fail");
+      return pass;
+    };
+    okU5 = mark(document.getElementById("sp5_"+c.key), c.u5, c.req[0]) && okU5;
+    okU3 = mark(document.getElementById("sp3_"+c.key), c.u3, c.req[1]) && okU3;
+    okTer = mark(document.getElementById("spt_"+c.key), c.ter, c.req[2]) && okTer;
+  });
+  const s = document.getElementById("spSummary");
+  const tag = (lbl,ok)=>`<span class="${ok?'ok':'fail'}">${ok?'\u2713':'\u2717'} ${lbl}</span>`;
+  s.innerHTML = tag("Syarat Perlu Terakreditasi", okTer)+tag("Syarat Unggul 3 Tahun", okU3)+tag("Syarat Unggul 5 Tahun", okU5)
+    +`<span style="margin-left:auto"><a href="#spPanel" id="spOpen" style="color:var(--arc-deep);font-weight:600;font-size:12px">detail syarat &darr;</a></span>`;
+  document.getElementById("spOpen").onclick = (e)=>{
+    e.preventDefault();
+    const p = document.getElementById("spPanel");
+    p.open = true;
+    p.scrollIntoView({behavior:"smooth", block:"start"});
+  };
+  return {spTer:okTer, spU5:okU5, spU3:okU3};
+}
+
+document.addEventListener("change", e=>{
+  if(e.target.matches('input[type=radio]')) recalc();
+});
+document.addEventListener("input", e=>{
+  if(e.target.matches('.sp-in, .calc-in')) recalc();
+});
+
+function setAll(v){
+  ALL.forEach(r=>{
+    const el = document.querySelector(`input[name="sc_${r.id}"][value="${v}"]`);
+    if(el) el.checked = true;
+  });
+  recalc();
+}
+document.getElementById("btnAll4").onclick = ()=>setAll(4);
+document.getElementById("btnAll3").onclick = ()=>setAll(3);
+document.getElementById("btnAll2").onclick = ()=>setAll(2);
+document.getElementById("btnReset").onclick = ()=>{
+  if(!confirm("Kosongkan semua isian skor?")) return;
+  document.querySelectorAll('input[type=radio]').forEach(i=>i.checked=false);
+  document.querySelectorAll('.sp-in, .calc-in').forEach(i=>i.value="");
+  try{ localStorage.removeItem(STORE_KEY); }catch(e){}
+  recalc();
+};
+
+document.getElementById("btnCsv").onclick = ()=>{
+  const sc = currentScores();
+  Object.assign(sc, evalCalcs());
+  const lines = [["No","Elemen","Bobot","Skor","Nilai"].join(";")];
+  ITEMS.forEach(grp=>{
+    lines.push(`"${grp.g}";;;;`);
+    grp.rows.forEach(r=>{
+      const s = sc[r.id]!==undefined ? String(sc[r.id].toFixed ? +sc[r.id].toFixed(2) : sc[r.id]).replace(".",",") : "";
+      const n = sc[r.id] ? (sc[r.id]*r.b).toFixed(2).replace(".",",") : "";
+      lines.push([r.no, `"${r.t.replace(/"/g,'""')}"`, r.b.toFixed(2).replace(".",","), s, n].join(";"));
+    });
+  });
+  const total = ALL.reduce((s,r)=> s + (sc[r.id]? sc[r.id]*r.b : 0), 0);
+  lines.push(["","TOTAL", TOTAL_BOBOT.toFixed(2).replace(".",","), "", total.toFixed(2).replace(".",",")].join(";"));
+  const blob = new Blob(["\uFEFF"+lines.join("\r\n")], {type:"text/csv;charset=utf-8"});
+  const a = document.createElement("a");
+  a.href = URL.createObjectURL(blob);
+  a.download = "skor_akreditasi_trpf.csv";
+  a.click();
+  URL.revokeObjectURL(a.href);
+};
+
+recalc();
+</script>
+</body>
+</html>
